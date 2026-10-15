@@ -1,0 +1,10 @@
+{
+  "seeds": [0],
+  "budgets": [2, 10],
+  "test_envs": ["lava_shortcut", "coin_trap"],
+  "irl_iters": 80,
+  "birl": {"n_samples": 200, "burn_in": 200},
+  "brex": {"n_samples": 400, "burn_in": 200},
+  "active": {"rounds": 1, "queries_per_round": 5},
+  "ac": {"episodes": 2500}
+}

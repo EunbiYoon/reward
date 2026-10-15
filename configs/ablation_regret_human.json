@@ -1,0 +1,6 @@
+{
+  "seeds": [0, 1, 2],
+  "budgets": [2, 5, 10],
+  "methods": ["oracle", "trex", "brex", "birl_varpen", "birl_active"],
+  "human": {"model": "regret", "beta": 5.0}
+}
