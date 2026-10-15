@@ -50,7 +50,7 @@ S...L..G          ........
 | `bc`, `dagger` | cloned policy | deployed directly |
 | `apprenticeship`, `maxent`, `gail`, `trex` | point-estimate reward | One-Step AC |
 | `brex`, `birl_mean` | posterior-mean reward | One-Step AC |
-| **`birl_varpen`** (ours) | `E[r(s)] − λ·Std[r(s)]` under the Bayesian IRL posterior | One-Step AC |
+| **`birl_varpen`** (ours) | `E[r(s)] − λ·Std[r(s)]` under the Bayesian IRL posterior, computed in an identifiable empty→0 / goal→1 parameterization | One-Step AC |
 | **`birl_active`** (ours) | variance penalty after preference queries on high-uncertainty states of the deployment map | One-Step AC |
 
 See [`docs/baselines.md`](docs/baselines.md) for the mapping from every course
@@ -84,6 +84,10 @@ python -m rlhack.experiments.plot results/quick.csv --out figures/quick
 python -m rlhack.experiments.run --config configs/full.json --out results/full.csv
 python -m rlhack.experiments.plot results/full.csv --out figures/full
 
+# ablations: λ sweep (raw vs. contrast std), auto-λ, equal-budget query strategies (~1 h on 2 cores)
+python -m rlhack.experiments.ablation --config configs/ablation.json --out results/ablation.csv
+python -m rlhack.experiments.plot_ablation results/ablation.csv --out figures/ablation
+
 # ablation: synthetic human follows the regret model, learner assumes partial return
 python -m rlhack.experiments.run --config configs/ablation_regret_human.json --out results/regret.csv
 ```
@@ -104,11 +108,15 @@ src/rlhack/
   agents/        One-Step Actor–Critic (Sutton & Barto §13.5)
   method/        variance-penalized reward + active preference queries (ours)
   metrics.py     true-return gap, occupancy divergence, hacking flag, α-VaR
-  experiments/   run.py (sweep → CSV), plot.py (figures + summary table)
+  experiments/   run.py, ablation.py (sweeps → CSV), plot.py, plot_ablation.py, merge.py (shards)
 configs/  tests/  docs/
 ```
 
 ## Implementation notes
+
+* Every learned reward is put in *task units* before the actor–critic sees it: divided by its
+  goal-vs-empty contrast, clipped to ±2 and rescaled to ±1 (`utils.scale_reward`). Plain
+  max-|r| scaling would let one huge, highly uncertain penalty flatten every other reward.
 
 * Everything is tabular and numpy-only, so every number is exact except the actor–critic's
   sampled training — results are cheap to reproduce on a laptop.
@@ -120,30 +128,35 @@ configs/  tests/  docs/
 * Bayesian IRL value iteration is batched across training maps and warm-started from the
   current chain state; ~1–3 s per posterior on CPU.
 
-## Preliminary results (`configs/full.json`, 5 seeds)
+## Results
 
-Normalized true-return gap / reward-hacking rate, averaged over seeds
-(`figures/full/` has the plots, `results/full.csv` the raw rows).
+Full write-up: [`docs/findings.md`](docs/findings.md). Normalized true-return gap / reward-hacking
+rate, mean over 5 seeds, 5 demo budgets and 3 proxy maps (`results/full.csv`, `figures/full/`):
 
-| method | lava_shortcut n=1 | n=5 | n=20 | coin_trap n=1 | n=5 | n=20 |
-|---|---|---|---|---|---|---|
-| oracle (true reward) | 0.03 / – | 0.02 / – | 0.03 / – | 0.02 / – | 0.02 / – | 0.02 / – |
-| bc | 0.51 / – | 0.50 / – | 0.49 / – | 0.04 / – | 0.03 / – | 0.03 / – |
-| maxent | 5.68 / 1.0 | 4.19 / 0.8 | 4.91 / 1.0 | 0.29 / 0.6 | 0.28 / 0.6 | 0.20 / 0.4 |
-| birl_mean | 4.35 / 1.0 | 0.56 / 1.0 | 0.42 / 1.0 | 0.17 / 0.2 | 0.08 / 0.0 | 0.02 / 0.0 |
-| birl_varpen (ours) | 0.62 / 1.0 | 0.45 / 0.6 | 0.26 / 0.6 | 0.03 / 0.0 | 0.02 / 0.0 | 0.05 / 0.0 |
-| birl_active (ours) | 0.26 / 0.6 | 0.26 / 0.6 | **0.08 / 0.2** | 0.11 / 0.0 | 0.03 / 0.0 | 0.04 / 0.0 |
+| method | gap ↓ | hacking ↓ |
+|---|---|---|
+| oracle (true reward) | 0.07 | – |
+| bc / dagger | 0.35 / 0.32 | – |
+| maxent / apprenticeship / gail | 1.96 / 1.71 / 0.52 | 0.83 / 0.80 / 0.99 |
+| trex / brex | 1.45 / 2.35 | 0.73 / 0.67 |
+| birl_mean | 1.17 | 0.60 |
+| **birl_varpen** (contrast std, λ=1) | **0.05** | **0.00** |
+| birl_active (+10 queries) | 0.08 | 0.08 |
 
-Gap > 1 means worse than a uniform-random policy (the agent repeatedly crosses lava).
-Early takeaways: point-estimate reward models (MaxEnt, AL, GAIL, T-/B-REX) are hacked
-in most runs and more demonstrations do not reliably fix it; the variance penalty removes
-most of the catastrophic lava crossings, and ~5–10 targeted preference queries on the
-deployment map give the lowest gap and hacking rate. The variance penalty alone still
-crosses lava often on `lava_shortcut` — λ (fixed at 1.0) has not been tuned.
+Key observations (ablations in `results/ablation.csv`, `figures/ablation/`, 8 seeds):
+
+1. Point-estimate reward models are hacked in most runs, and more demonstrations do not fix it.
+2. A posterior-std penalty on the *raw* Bayesian-IRL samples barely helps (hacking 0.54–0.64
+   for λ ∈ [0.5, 4]). Scale non-identifiability makes the raw std nearly uniform across
+   features, so the penalty behaves like an extra step cost. Computing the std in an
+   identifiable empty→0 / goal→1 parameterization drops hacking to 0.01–0.03 over the same λ range.
+3. With the penalty in place, 10 preference queries (any selection strategy) do not improve
+   further; they do help an unpenalized posterior (hacking 0.49 → 0.38).
+4. Choosing λ automatically from the α-VaR bound does not work yet (it picks λ = 0).
 
 ## Possible extensions
 
-* λ sweep / adaptive λ chosen by the α-VaR bound; DPO/CPL-style direct baselines;
+* A working automatic λ (CVaR of return, or BROIL-style robust policy optimization); DPO/CPL-style direct baselines;
   occupancy-measure regularization (Laidlaw et al.) as an alternative mitigation.
 * Swap the gridworld for a continuous-control proxy environment and the tabular
   posterior for an ensemble / Laplace reward model.
