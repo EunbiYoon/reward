@@ -86,8 +86,20 @@ def test_bayesian_irl_posterior_shapes_and_uncertainty():
     assert post.mean[1] > post.mean[0]
     env = make_test_env("lava_shortcut")
     r_pen = penalized_reward(env, post, lam=1.0)
-    assert (r_pen <= post.reward_mean(env) + 1e-12).all()
+    assert (r_pen <= post.contrast().reward_mean(env) + 1e-12).all()
+    assert (penalized_reward(env, post, 1.0, param="raw") <= post.reward_mean(env) + 1e-12).all()
     assert post.reward_std(env)[env.states_of_type(LAVA)].mean() > 0
+    c = post.contrast().mean
+    assert abs(c[0]) < 1e-9 and abs(c[1] - 1) < 1e-9
+
+
+def test_scale_reward_task_units():
+    from rlhack.utils import scale_reward
+    env = make_test_env("lava_shortcut")
+    r = scale_reward(env, 7.0 * env.reward(TRUE_WEIGHTS))
+    assert np.abs(r).max() <= 1.0 + 1e-12
+    goal, empty = env.goal_states[0], env.states_of_type(0)[0]
+    assert abs((r[goal] - r[empty]) - 0.5) < 1e-9  # goal-empty contrast -> 1/clip
 
 
 def test_trex_and_bc_run():

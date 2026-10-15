@@ -40,6 +40,26 @@ class Posterior:
     def reward_std(self, env):
         return self.reward_samples(env).std(0)
 
+    def contrast(self, zero_feature: int = 0, unit_feature: int = 1, min_gap: float = 1e-3) -> "Posterior":
+        """Map every sample to an identifiable parameterization.
+
+        Linear Bayesian IRL is only identified up to scale (Boltzmann temperature vs.
+        reward magnitude) and, partly, shift. Raw per-feature posterior std is therefore
+        dominated by that global ambiguity and is nearly uniform across features, so it
+        does not single out the feature the demonstrations never pinned down. Here each
+        sample is rescaled so that w[zero_feature] = 0 and w[unit_feature] = 1
+        (default: empty cell -> 0, goal -> 1); samples with w[unit] <= w[zero] are
+        dropped (fraction kept is stored in ``info['contrast_kept']``). The std of
+        the remaining coordinates then measures genuinely unidentified trade-offs.
+        """
+        W = self.samples
+        d = W[:, unit_feature] - W[:, zero_feature]
+        keep = d > min_gap
+        if keep.sum() < 2:  # degenerate posterior: fall back to the raw samples
+            return Posterior(W, self.accept_rate, {**self.info, "contrast_kept": float(keep.mean())})
+        Wc = (W[keep] - W[keep, zero_feature][:, None]) / d[keep, None]
+        return Posterior(Wc, self.accept_rate, {**self.info, "contrast_kept": float(keep.mean())})
+
 
 class DemoLikelihood:
     def __init__(self, envs, demos, beta: float, gamma: float):

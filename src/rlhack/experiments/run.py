@@ -25,7 +25,7 @@ from ..irl import apprenticeship_irl, bayesian_irl, brex, maxent_irl, state_gail
 from ..method import active_bayesian_irl, penalized_reward
 from ..metrics import evaluate_policy
 from ..preferences import SyntheticHuman, pairwise_preferences
-from ..utils import normalize_reward
+from ..utils import scale_reward
 
 ALL_METHODS = ["oracle", "bc", "dagger", "apprenticeship", "maxent", "gail", "trex", "brex",
                "birl_mean", "birl_varpen", "birl_active"]
@@ -46,6 +46,7 @@ DEFAULTS = {
     "human": {"model": "partial_return", "beta": 5.0},
     "ac": {"episodes": 4000, "horizon": 40, "exploring_starts": 0.8, "alpha_theta": 1.0, "alpha_w": 0.5},
     "var_alpha": 0.95,
+    "reward_clip": 2.0,
 }
 
 
@@ -145,7 +146,7 @@ def run(cfg: dict, out_path: str, verbose: bool = True):
                             extra["n_queries"] = len(prefs)
                         else:
                             raise ValueError(method)
-                        proxy = normalize_reward(r)
+                        proxy = scale_reward(env, r, cfg["reward_clip"])
                         policy, _ = train_actor_critic(env, proxy, rng, **cfg["ac"])
                     if post_samples is not None and len(post_samples) > 100:
                         post_samples = post_samples[rng.choice(len(post_samples), 100, replace=False)]

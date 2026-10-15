@@ -1,0 +1,5 @@
+{
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7],
+  "budgets": [2, 5, 20],
+  "test_envs": ["lava_shortcut", "coin_trap", "combined"]
+}

@@ -52,3 +52,20 @@ class Adam:
 def normalize_reward(r: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     """Scale a reward vector to max |r| = 1 (preserves the optimal policy)."""
     return r / (np.abs(r).max() + eps)
+
+
+def scale_reward(env, r: np.ndarray, clip: float = 2.0, eps: float = 1e-6) -> np.ndarray:
+    """Put a learned reward in *task units* before handing it to the RL agent.
+
+    Divide by the goal-vs-empty contrast (so reaching the goal is worth +1 relative to
+    an ordinary step), clip to [-clip, clip] and rescale to [-1, 1]. Clipping keeps one
+    extreme value (e.g. a heavily penalized, highly uncertain hazard) from crushing every
+    other reward toward zero, which a plain max-|r| normalization would do. Falls back to
+    max-|r| scaling when the learned goal is not better than an empty cell.
+    """
+    from .envs.gridworld import EMPTY, GOAL
+
+    goal, empty = env.states_of_type(GOAL), env.states_of_type(EMPTY)
+    d = r[goal].mean() - r[empty].mean() if len(goal) and len(empty) else 0.0
+    r = r / d if d > eps else r / (np.abs(r).max() + eps)
+    return np.clip(r, -clip, clip) / clip
