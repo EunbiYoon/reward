@@ -1,7 +1,5 @@
 # Reward Learning and Reward Hacking in Actor–Critic Agents
 
-Final project for **CS 690S: AI Alignment** (UMass Amherst, Fall 2026, Prof. Scott Niekum).
-
 RLHF pipelines learn a reward model from human data and then let an RL optimizer
 push hard against it. When the reward model is misspecified, the optimizer finds
 and exploits the gap (*reward hacking*). This repo studies that pipeline in a
