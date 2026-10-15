@@ -1,0 +1,74 @@
+{
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "budgets": [
+    1,
+    2,
+    5,
+    10,
+    20
+  ],
+  "test_envs": [
+    "lava_shortcut",
+    "coin_trap",
+    "combined"
+  ],
+  "methods": [
+    "oracle",
+    "bc",
+    "dagger",
+    "apprenticeship",
+    "maxent",
+    "gail",
+    "trex",
+    "brex",
+    "birl_mean",
+    "birl_varpen",
+    "birl_active"
+  ],
+  "grid_size": 8,
+  "n_train_maps": 10,
+  "lava_prob": 0.3,
+  "slip": 0.1,
+  "gamma": 0.95,
+  "demo_horizon": 30,
+  "expert_beta": 100.0,
+  "irl_iters": 150,
+  "birl": {
+    "beta": 20.0,
+    "beta_pref": 5.0,
+    "prior_std": 1.0,
+    "n_samples": 400,
+    "burn_in": 400,
+    "thin": 2
+  },
+  "brex": {
+    "beta": 5.0,
+    "n_samples": 800,
+    "burn_in": 400
+  },
+  "ranked_per_demo": 2,
+  "max_pairs_per_demo": 6,
+  "lambda": 1.0,
+  "active": {
+    "rounds": 2,
+    "queries_per_round": 5
+  },
+  "human": {
+    "model": "partial_return",
+    "beta": 5.0
+  },
+  "ac": {
+    "episodes": 4000,
+    "horizon": 40,
+    "exploring_starts": 0.8,
+    "alpha_theta": 1.0,
+    "alpha_w": 0.5
+  },
+  "var_alpha": 0.95
+}

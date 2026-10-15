@@ -120,6 +120,27 @@ configs/  tests/  docs/
 * Bayesian IRL value iteration is batched across training maps and warm-started from the
   current chain state; ~1–3 s per posterior on CPU.
 
+## Preliminary results (`configs/full.json`, 5 seeds)
+
+Normalized true-return gap / reward-hacking rate, averaged over seeds
+(`figures/full/` has the plots, `results/full.csv` the raw rows).
+
+| method | lava_shortcut n=1 | n=5 | n=20 | coin_trap n=1 | n=5 | n=20 |
+|---|---|---|---|---|---|---|
+| oracle (true reward) | 0.03 / – | 0.02 / – | 0.03 / – | 0.02 / – | 0.02 / – | 0.02 / – |
+| bc | 0.51 / – | 0.50 / – | 0.49 / – | 0.04 / – | 0.03 / – | 0.03 / – |
+| maxent | 5.68 / 1.0 | 4.19 / 0.8 | 4.91 / 1.0 | 0.29 / 0.6 | 0.28 / 0.6 | 0.20 / 0.4 |
+| birl_mean | 4.35 / 1.0 | 0.56 / 1.0 | 0.42 / 1.0 | 0.17 / 0.2 | 0.08 / 0.0 | 0.02 / 0.0 |
+| birl_varpen (ours) | 0.62 / 1.0 | 0.45 / 0.6 | 0.26 / 0.6 | 0.03 / 0.0 | 0.02 / 0.0 | 0.05 / 0.0 |
+| birl_active (ours) | 0.26 / 0.6 | 0.26 / 0.6 | **0.08 / 0.2** | 0.11 / 0.0 | 0.03 / 0.0 | 0.04 / 0.0 |
+
+Gap > 1 means worse than a uniform-random policy (the agent repeatedly crosses lava).
+Early takeaways: point-estimate reward models (MaxEnt, AL, GAIL, T-/B-REX) are hacked
+in most runs and more demonstrations do not reliably fix it; the variance penalty removes
+most of the catastrophic lava crossings, and ~5–10 targeted preference queries on the
+deployment map give the lowest gap and hacking rate. The variance penalty alone still
+crosses lava often on `lava_shortcut` — λ (fixed at 1.0) has not been tuned.
+
 ## Possible extensions
 
 * λ sweep / adaptive λ chosen by the α-VaR bound; DPO/CPL-style direct baselines;
