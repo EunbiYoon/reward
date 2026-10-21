@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Gets the Credit?</title>
+<meta name="description" content="Reward design and bad teammates in cooperative reinforcement learning, measured with Shapley credit in Overcooked, Level-Based Foraging and the Multi-Robot Warehouse.">
+<style>
+  :root {
+    --bg: #fbfaf7; --fg: #1d1d1b; --muted: #5f5d57; --line: #e3dfd6; --card: #ffffff;
+    --accent: #1f5fbf; --partner: #2e9e4f; --warn: #b5532a; --code: #f2efe8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151514; --fg: #ecebe6; --muted: #a8a59c; --line: #33322f; --card: #1d1d1b;
+      --accent: #6aa1ff; --partner: #5cc77d; --warn: #e58a5f; --code: #24231f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151514; --fg: #ecebe6; --muted: #a8a59c; --line: #33322f; --card: #1d1d1b;
+    --accent: #6aa1ff; --partner: #5cc77d; --warn: #e58a5f; --code: #24231f;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 17px/1.6 Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 48px 16px 80px; }
+  h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.15; margin: 0 0 10px; letter-spacing: -0.01em; }
+  h2 { font-size: 24px; margin: 56px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 18px; margin-bottom: 18px; }
+  .links { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0 8px; }
+  .links a { font: 600 14px/1 -apple-system, system-ui, sans-serif; text-decoration: none;
+             padding: 9px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--fg); }
+  .links a:hover { border-color: var(--accent); }
+  .lead { font-size: 20px; }
+  table { width: 100%; border-collapse: collapse; font: 15px/1.45 -apple-system, system-ui, sans-serif; margin: 10px 0 6px; }
+  th, td { text-align: left; padding: 10px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .tag { display: inline-block; font: 600 12px/1 -apple-system, system-ui, sans-serif; padding: 4px 8px;
+         border-radius: 6px; background: var(--code); color: var(--fg); white-space: nowrap; }
+  .formula { font: 16px/1.6 "SFMono-Regular", Menlo, Consolas, monospace; background: var(--code);
+             padding: 14px 16px; border-radius: 10px; overflow-x: auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .card img { width: 100%; height: auto; border-radius: 8px; background: var(--code); display: block; }
+  .card p { font: 14px/1.5 -apple-system, system-ui, sans-serif; color: var(--muted); margin: 10px 0 0; }
+  .missing { font: 14px/1.5 -apple-system, system-ui, sans-serif; color: var(--muted); background: var(--code);
+             border-radius: 8px; padding: 18px; }
+  .missing code { word-break: break-all; }
+  pre { background: var(--code); padding: 14px 16px; border-radius: 10px; overflow-x: auto;
+        font: 14px/1.55 "SFMono-Regular", Menlo, Consolas, monospace; }
+  code { font-family: "SFMono-Regular", Menlo, Consolas, monospace; font-size: 0.9em; }
+  .legend { font: 14px/1.5 -apple-system, system-ui, sans-serif; color: var(--muted); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 0 2px; vertical-align: middle; }
+  .hyp { margin: 0 0 18px; }
+  .hyp b { color: var(--warn); }
+  footer { margin-top: 64px; color: var(--muted); font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Who Gets the Credit?</h1>
+  <div class="sub">Reward design and bad teammates in cooperative reinforcement learning</div>
+  <div>Eunbi Yoon</div>
+  <div class="links">
+    <a href="https://github.com/EunbiYoon/reward">Code</a>
+    <a href="https://eunbiyoon.com/">Website</a>
+    <a href="https://www.linkedin.com/in/eunbiyoon0717">LinkedIn</a>
+  </div>
+
+  <h2>The idea</h2>
+  <p class="lead">When an agent is trained to work in a team, its reward is also a rule for how much credit it gets.</p>
+  <p>A shaped reward counts actions that look helpful. A team reward gives everyone the same credit. An individual reward
+    counts only what the agent finishes itself. The agent maximizes the rule, not its real contribution, so it can look like
+    a good teammate while doing little for the team. This is reward hacking inside a team.</p>
+  <p>This project trains one agent next to a fixed partner under three rewards and asks which kind of bad teammate each
+    reward produces. Real contribution is measured with the Shapley value, so the credit a reward hands out can be compared
+    with what the agent actually added.</p>
+
+  <h2>Three rewards, three bad teammates</h2>
+  <div class="table-wrap">
+  <table>
+    <tr><th>The learner is paid for</th><th>Expected teammate</th><th>What it does</th></tr>
+    <tr><td>Team result plus a bonus for helpful looking actions</td><td><span class="tag">H1 fake help</span></td>
+        <td>Keeps picking things up but adds nothing</td></tr>
+    <tr><td>The whole team's result</td><td><span class="tag">H2 spectator</span></td>
+        <td>Lets a strong partner do the work</td></tr>
+    <tr><td>Only its own results</td><td><span class="tag">H3 narcissist</span></td>
+        <td>Takes over work the partner prepared and looks like the best player</td></tr>
+  </table>
+  </div>
+
+  <h2>Measuring real contribution</h2>
+  <p>Every trained agent is evaluated three times on the same episodes. Once with both agents, once with the learner frozen,
+    and once with the partner frozen. A frozen agent is parked where it blocks as little as possible.</p>
+  <div class="formula">phi = ½ [ (v(L,P) − v(P)) + v(L) ]<br>s = phi / v(L,P)<br>credit gap = own share − s</div>
+  <p style="margin-top:12px">Here v is the team result, L the learner and P the partner. The share s is what the learner really
+    contributed. The own share is what the domain's own accounting gives it. A good teammate has a gap near the gap of a
+    scripted reference agent placed in the same seat.</p>
+
+  <h2>Domains</h2>
+  <p class="legend"><span class="dot" style="background:var(--accent)"></span>learner (agent 0)
+    <span class="dot" style="background:var(--partner)"></span>partner (agent 1). The clips below show the scripted reference
+    in the learner's seat, so they show what good teamwork looks like.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Overcooked</h3>
+      <img src="videos/overcooked_preview_greedy.gif" alt="Two scripted cooks making onion soup in cramped_room" loading="lazy">
+      <p>Two cooks make onion soup in a small kitchen. Helpful looking action is picking up an onion or a dish.
+        Team result is soups delivered.</p>
+    </div>
+    <div class="card">
+      <h3>Level-Based Foraging</h3>
+      <img src="videos/lbf_preview_greedy.gif" alt="Two scripted agents collecting food on a grid" loading="lazy">
+      <p>Agents collect food whose level may need both of them. Helpful looking action is trying to load food.
+        Team result is the share of food collected.</p>
+    </div>
+    <div class="card">
+      <h3>Multi-Robot Warehouse</h3>
+      <img src="videos/rware_preview_greedy.gif" alt="Two scripted robots delivering requested shelves" loading="lazy">
+      <p>Robots bring requested shelves (red) to the goal (green) and return them. Helpful looking action is picking up a
+        shelf. Team result is deliveries.</p>
+    </div>
+  </div>
+
+  <h2>Hypotheses and how they are judged</h2>
+  <p class="hyp"><b>H1 fake help.</b> With the pickup bonus and a strong partner, at least half of the runs have more helpful
+    looking events than the reference while s ≤ 0.1.</p>
+  <p class="hyp"><b>H2 spectator.</b> With the team reward and a strong partner, s is below half of the reference share, and
+    s rises when the reward switches to the individual one.</p>
+  <p class="hyp"><b>H3 narcissist.</b> With the individual reward and a strong partner, the credit gap exceeds the reference
+    gap by at least 0.2, and the partner achieves less than under the team reward.</p>
+  <p>A sanity check comes first. With a partner that never moves, the learner has to achieve something alone, otherwise the
+    domain is reported as inconclusive. Every run is repeated with PPO and with GRPO.</p>
+
+  <h2>Results</h2>
+  <p>The three rewards side by side, trained with PPO next to the strong partner.</p>
+  <div class="grid" id="results">
+    <div class="card"><h3>Overcooked</h3>
+      <img src="videos/overcooked_compare_ppo_greedy.gif" alt="Overcooked, three rewards side by side" loading="lazy"
+           onerror="this.outerHTML='<div class=missing>Not trained yet. Run <code>python -m eval.visualize --run results/full --algo ppo --partner greedy --compare --out page/videos/overcooked_compare_ppo_greedy.gif</code></div>'"></div>
+    <div class="card"><h3>Level-Based Foraging</h3>
+      <img src="videos/lbf_compare_ppo_greedy.gif" alt="LBF, three rewards side by side" loading="lazy"
+           onerror="this.outerHTML='<div class=missing>Not trained yet. Run <code>python -m eval.visualize --run results/lbf_full --algo ppo --partner greedy --compare --out page/videos/lbf_compare_ppo_greedy.gif</code></div>'"></div>
+    <div class="card"><h3>Multi-Robot Warehouse</h3>
+      <img src="videos/rware_compare_ppo_greedy.gif" alt="RWARE, three rewards side by side" loading="lazy"
+           onerror="this.outerHTML='<div class=missing>Not trained yet. Run <code>python -m eval.visualize --run results/rware_full --algo ppo --partner greedy --compare --out page/videos/rware_compare_ppo_greedy.gif</code></div>'"></div>
+  </div>
+
+  <h2>Run it</h2>
+<pre>pip install -r requirements.txt rware lbforaging
+python -m eval.visualize --preview --partner greedy      # check the install, no training
+python -m eval.run --quick --workers 4 --out results/quick
+python -m eval.run --env kitchen   --workers 4 --out results/full
+python -m eval.run --env foraging  --workers 4 --out results/lbf_full
+python -m eval.run --env warehouse --workers 4 --out results/rware_full
+python -m eval.summarize results/full                    # tables and H1 to H3 verdicts</pre>
+
+  <footer>Built on Overcooked AI (Carroll et al. 2019), Level-Based Foraging and the Multi-Robot Warehouse
+    (Christianos et al. 2020, Papoudakis et al. 2021).</footer>
+</main>
+</body>
+</html>

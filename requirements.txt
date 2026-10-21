@@ -1,0 +1,12 @@
+# Official Overcooked-AI (Carroll et al. 2019) and its renderer
+overcooked-ai
+pygame
+# Optional extra environments (--env warehouse / --env foraging)
+rware          # Multi-Robot Warehouse (Christianos et al. 2020)
+lbforaging     # Level-Based Foraging (Papoudakis et al. 2021)
+torch>=2.0
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+pillow>=9.0
+scipy>=1.10   # optional: exact t intervals (falls back to a table)
