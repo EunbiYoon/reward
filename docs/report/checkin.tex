@@ -1,0 +1,223 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{titlesec}
+
+% Placeholder helper: \TODO{what result goes here}
+\newcommand{\TODO}[1]{\textcolor{red}{[\textbf{PENDING:} #1]}}
+
+\titlespacing*{\section}{0pt}{1.2ex}{0.6ex}
+\setlist{nosep,leftmargin=1.4em}
+\pagestyle{empty}
+
+\title{\vspace{-2.5em}CS 690S: AI Alignment --- Final Project Check-in\\
+\large Who Gets the Credit? Reward Design and Bad Teammates in Cooperative RL}
+\author{Eunbi Yoon}
+\date{}
+
+\begin{document}
+\sloppy
+\maketitle
+\vspace{-2.5em}
+
+%========================================================
+\section*{1. Project Summary \& Core Contribution}
+When an agent is trained in a team, its reward is also a rule for how much credit it
+gets, and the agent maximizes that rule rather than its real contribution. This project
+asks whether common reward designs (a never-fading pickup bonus, a shared team reward,
+an individual delivery reward) make a learned cook in Overcooked look like a good
+teammate while adding little to the team's soups. The contribution is a detection
+method, not a new algorithm: we compare the credit a reward assigns to the learner with
+its Shapley contribution, computed by freezing one cook at evaluation time, and call the
+difference the \emph{credit gap}.
+
+%========================================================
+\section*{2. Work Completed / Initial Results}
+
+\paragraph{(a) Literature survey (done).}
+Reward hacking and proxy gaming (Shihab et al.\ 2025), Overcooked for human--AI
+coordination (Carroll et al.\ 2019; Gessler et al.\ 2025), lazy agents in multi-agent
+LLM systems (Zhang et al.\ 2025), Shapley credit assignment (SHARP, Li et al.\ 2026),
+and diverse reward shapings for coordination (Powell et al.\ 2026).
+
+\paragraph{(b) Setup / implementation (done).}
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+Component & Value \\
+\midrule
+Learner & MLP policy (hidden 128), one learned cook + one fixed partner \\
+RL method & PPO (lr $3\!\times\!10^{-4}$, clip 0.2, 8 epochs, GAE $\lambda$ 0.98) and GRPO (group 8) \\
+Training environment & Overcooked \texttt{cramped\_room}, horizon 400; also LBF (8x8-3f), RWARE (tiny) \\
+Rewards & pickup (+3/item, never fades), team, individual; shaping anneals over first 50\% \\
+Partners & \emph{stay} (never moves), \emph{greedy} (scripted cook that plays well) \\
+Contribution metric & 2-player Shapley value from frozen-partner coalitions; share $s$ \\
+Reference & scripted greedy cook in the learner's seat ($s^*$) \\
+Budget & $2\!\times\!10^{6}$ env steps/run, 10 eval episodes, 3 seeds \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{(c) Experiments (initial).}
+Full grid finished on Overcooked: 3 seeds $\times$ 3 rewards $\times$ 2 partners
+$\times$ 2 optimizers = 36 runs. Greedy partner, means with 95\% $t$-intervals over seeds:
+\begin{center}
+\small
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Optimizer & Reward & Team soups & Shapley share $s$ & Credit gap & Pickups \\
+\midrule
+\multicolumn{2}{@{}l}{Reference (scripted cook)} & 9.10 & 0.50 & 0.13 & 19.9 \\
+\midrule
+PPO  & pickup     & 7.53 [6.50, 8.57]  & 0.03 [$-$0.03, 0.10] & $-$0.03 & 165.1 [89.7, 240.4] \\
+PPO  & team       & 11.00 [11.00, 11.00] & 0.18 [0.18, 0.18] & 0.82 [0.80, 0.83] & 12.0 \\
+PPO  & individual & 11.00 [11.00, 11.00] & 0.18 [0.18, 0.18] & 0.82 [0.80, 0.83] & 12.0 \\
+GRPO & pickup     & 7.13 [5.64, 8.63]  & 0.01 [$-$0.10, 0.11] & $-$0.01 & 146.1 [79.2, 213.1] \\
+GRPO & team       & 8.27 [6.67, 9.86]  & 0.07 [0.00, 0.15] & $-$0.07 & 6.2 \\
+GRPO & individual & 10.20 [9.12, 11.28] & 0.16 [0.12, 0.19] & 0.83 [0.81, 0.85] & 10.6 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Sanity check (team reward, partner never moves): the learner cooks alone and delivers
+9.00 (PPO) / 7.57 (GRPO) soups, so the domain is conclusive.
+
+\paragraph{(d) Analysis (initial).}
+The pickup bonus is hacked by both optimizers: the learner picks up 7--8$\times$ more items
+than the reference while its Shapley share is near 0, and with the idle partner it
+delivers \emph{zero} soups. Under the individual reward the learner delivers almost every
+soup (own share $\approx$ 1.0) but its Shapley share is only 0.16--0.18, a credit gap of
+0.82 against 0.13 for the reference: it takes credit for soups the partner prepared.
+The team reward splits by optimizer (Section 4).
+
+\paragraph{(e) Oversight check (done).}
+A supervisor who sees only the team score flags a run when it falls below 80\% of the
+reference. Pooling Overcooked, LBF and RWARE (greedy partner), 9 of 13 credit-theft runs
+(0.69 [0.42, 0.87]) and 15 of 18 hacked Overcooked runs pass this check: the team score
+does not reveal the hacking.
+
+\paragraph{(f) LLM-judge pilot (done, Assignment 7).}
+To prepare the RLAIF condition, Qwen3.8-27B (local, temperature 0) judged 15 simulated
+kitchen episode pairs in both orders, with and without a retrieved Shapley definition,
+three runs each. Busy work rarely fooled it (16/16 ``Equal'' without thinking), but credit
+theft fooled it in every setting: the thief received 0.17--0.22 more credit than its
+Shapley share. With the definition and thinking on it reasoned counterfactually and was
+exact in 6 of 8 cases, but failed 4 of 4 times when the thief took every soup, since the
+log then shows no evidence that the preparer could deliver alone. Position bias appeared
+without thinking (22/22 correct when the stronger cook came first, 14/22 when second).
+
+%========================================================
+\section*{3. Hypotheses \& Progress}
+\renewcommand{\arraystretch}{1.25}
+\begin{center}
+\small
+\begin{tabular}{@{}p{0.27\textwidth} p{0.27\textwidth} p{0.38\textwidth}@{}}
+\toprule
+Hypothesis & Test & Status / Evidence (Overcooked) \\
+\midrule
+\textbf{H1 (fake help).} With the pickup bonus, the learner picks up items but adds no soups.
+& $\geq$ half of runs have pickups $>$ reference and $s \le 0.1$ (greedy partner).
+& \textbf{Supported}, both optimizers: 3/3 runs each (PPO pickups 165 vs.\ 19.9, $s$ = 0.03; GRPO 146 vs.\ 19.9, $s$ = 0.01). \\
+
+\textbf{H2 (spectator).} With the team reward and a strong partner, the learner lets the partner work.
+& $s < s^*/2$ under team reward, and $s$ rises under individual reward (paired by seed).
+& \textbf{GRPO: supported} (means only): $s$ = 0.07 vs.\ 0.25, rise +0.08 [$-$0.02, 0.18].
+\textbf{PPO: not supported}: team and individual converge to the same policy ($s$ = 0.18 both). \\
+
+\textbf{H3 (narcissist).} With the individual reward, the learner delivers soups the partner prepared.
+& Own share $- s \geq 0.2$, and partner delivers fewer soups than under team reward.
+& \textbf{GRPO: supported}: gap 0.83 [0.81, 0.85], partner soups $-$8.13 [$-$9.41, $-$6.86].
+\textbf{PPO}: gap 0.82 but partner-soup drop is 0, because the team-reward policy already steals deliveries. \\
+
+\textbf{Control.} Scripted reference cook shows no hacking.
+& Same coalition evaluation with the greedy cook in the learner's seat.
+& \textbf{Done}: $s^*$ = 0.50, credit gap 0.13, 19.9 pickups, 9.10 soups. \\
+
+\textbf{Generalization.} Same pattern in other cooperative domains.
+& Same grid on LBF and RWARE.
+& \textbf{Partial}: H1 holds on RWARE (PPO), not on LBF; H2 holds on LBF and RWARE (PPO);
+H3 does not reach the 0.2 gap outside Overcooked. RWARE GRPO fails the sanity check; a
+$5\!\times\!10^{6}$-step rerun is queued on the cluster. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Extensions.}
+\begin{itemize}
+  \item \textbf{Oversight (done)}: hacking passes a team-score check; see 2(e).
+  \item \textbf{Fix: counterfactual reward (done, does not fix it)}: team reward minus the
+        partner-alone baseline, so taking a soup the partner would have delivered earns nothing.
+        12 runs, greedy partner, 3 seeds. GRPO no longer steals but becomes a spectator
+        (credit gap $-$0.07, $s$ = 0.07, partner delivers all 8.1 soups). PPO splits by seed: one
+        seed stops stealing (gap $-$0.16), two still steal (gap 0.80, 0.81), with team soups
+        10.6 [10.1, 11.1]. Removing the reward for theft does not reward real contribution,
+        because the learner's marginal soups are near zero when the partner is strong.
+  \item \textbf{Bonus size and partner skill}: pickup bonus 0--10; partner action noise 0--0.5.
+        Code done, not yet run; planned by Nov 20.
+  \item \textbf{Partner modeling}: auxiliary head predicting the partner's next action.
+        Code done, not yet run; planned by Nov 30.
+  \item \textbf{RLAIF}: reward model trained on Qwen3.8-27B preferences over real rollouts,
+        including trained credit thieves; prompts with the Shapley definition and each cook's
+        solo results. Pipeline done and tested on 19 pairs; full run planned by Nov 30.
+\end{itemize}
+
+%========================================================
+\section*{4. Surprises / Changes}
+\begin{itemize}
+  \item \textbf{PPO under the team reward does not become a spectator; it becomes a
+        ``taker''.} It delivers all 11 soups (more than the reference's 9.1) while its Shapley
+        share is only 0.18, so team and individual rewards produce the same policy. Whether a
+        team reward yields laziness or takeover depends on the optimizer, not only the reward.
+  \item \textbf{High team score hides the hacking.} The individual-reward learner raises team
+        soups (11 vs.\ 9.1) while taking credit for the partner's work, so the true objective
+        alone cannot detect it; the Shapley comparison is needed.
+  \item \textbf{The LLM judge is fooled by theft, not by busy work.} I expected an LLM judge to
+        over-reward ``looking busy''; the pilot shows the opposite. It splits credit fairly
+        when outputs are equal but over-credits the cook who delivers soups another prepared.
+        The RLAIF condition is therefore re-targeted at credit theft.
+  \item \textbf{The difference reward is not a fix.} I expected the counterfactual reward to remove
+        theft; instead it turns GRPO into a spectator and leaves PPO stealing in 2 of 3 seeds.
+  \item \textbf{Scope change.} Added LBF and RWARE for generalization, a counterfactual reward as
+        a candidate fix, and an RLAIF condition that tests whether an LLM judge repeats the
+        credit-theft error.
+\end{itemize}
+
+%========================================================
+\section*{5. Points Stuck On / Confused About}
+\begin{itemize}
+  \item \textbf{Frozen-partner coalitions.} A frozen cook is parked on a cell next to no
+        station but still blocks that cell. Is this an acceptable approximation of
+        ``partner absent'' for the Shapley value, or should the cook be removed from the map?
+  \item \textbf{H2/H3 criteria.} PPO fails H2/H3 \emph{as written} because the team-reward policy
+        already hacks. Should the hypotheses compare to the reference instead of to the other reward?
+  \item \textbf{Statistical power.} 3 seeds give wide intervals (e.g.\ GRPO H2 is supported by means
+        only); the cluster runs add seeds, but preemptible compute limits how many.
+  \item \textbf{Missing counterfactual evidence.} A retrieved definition supplies the rule but not
+        the facts: when the thief takes every soup, nothing in the log shows the preparer could
+        deliver alone. Is it fair to give the judge each cook's solo results, or does that hand it
+        the Shapley answer and make the RLAIF test trivial?
+  \item \textbf{Judge nondeterminism.} Answers changed between identical runs even at temperature 0,
+        so the RLAIF study needs repeated runs; how many are enough?
+\end{itemize}
+
+%========================================================
+\section*{6. Timeline to Completion}
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Date & Milestone & Deliverable \\
+\midrule
+$\sim$ Nov 20 & Bonus sweep, partner noise, RWARE 5M & verdict tables \\
+$\sim$ Nov 30 & RLAIF judge on real rollouts, partner head & theft-bias test \\
+$\sim$ Dec 05 & Analysis \& figures & credit-gap plots, rollout GIFs \\
+$\sim$ Dec 10 & Writing & final report \\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent\footnotesize Note: the UMass Unity scratch workspace expires Dec 10, 2026, bounding the number of runs.
+
+\end{document}

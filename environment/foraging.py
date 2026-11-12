@@ -60,6 +60,8 @@ class Foraging(TwoSeat):
     n_actions = N_ACTIONS
     unit = "food"
     pickup_kinds = ("lifted", "failed")
+    stay_action = STAY
+    action_names = ("NONE", "N", "S", "W", "E", "LOAD")
 
     def __init__(self, layout: str = "8x8-3f", reward: str = "team", horizon: int = 50,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.05,

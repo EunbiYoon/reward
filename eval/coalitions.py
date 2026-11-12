@@ -23,12 +23,16 @@ import numpy as np
 EVAL_SEED0 = 10_000
 
 
-def _mean_play(env, seat0, seat1, n: int, before_episode=None) -> dict:
+def _mean_play(env, seat0, seat1, n: int, before_episode=None, seed0: int = EVAL_SEED0,
+               traces: list | None = None) -> dict:
     acc: dict[str, list] = {}
     for k in range(n):
         if before_episode is not None:
-            before_episode(EVAL_SEED0 + k)
-        ep = env.play(seat0, seat1, EVAL_SEED0 + k)
+            before_episode(seed0 + k)
+        trace = [] if traces is not None else None
+        ep = env.play(seat0, seat1, seed0 + k, trace=trace)
+        if traces is not None:
+            traces.append(trace)
         for key, val in ep.items():
             acc.setdefault(key, []).append(val)
     return {k: float(np.mean(v)) for k, v in acc.items()}
@@ -45,9 +49,12 @@ def shapley(v: dict, n_agents: int) -> tuple[float, float]:
     return float(phi), float(s)
 
 
-def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None) -> dict:
+def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, seed0: int = EVAL_SEED0,
+                        traces: list | None = None) -> dict:
     """seat0: a policy callable or 'greedy' (the scripted reference). partner: 'stay' | 'greedy',
-    the kind of every partner seat 1 .. env.n_agents-1."""
+    the kind of every partner seat 1 .. env.n_agents-1. Episodes use seeds seed0 .. seed0+n-1.
+    If `traces` is a list, the per-step trace of every grand-coalition episode (everyone moves,
+    the real game) is appended to it, one list per episode (see env.play)."""
     n_agents = getattr(env, "n_agents", 2)
     seats = tuple(range(1, n_agents))
 
@@ -61,15 +68,16 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None) -
     plays: dict = {}
 
     def play(learner_moves: bool, T: frozenset) -> dict:
-        T = T if partner == "greedy" else frozenset()
+        T = T if partner != "stay" else frozenset()
         key = (learner_moves, T)
         if key not in plays:
             if not learner_moves and not T:
                 plays[key] = {"soups": 0.0}                             # v(empty) = 0
             elif learner_moves:
-                plays[key] = _mean_play(env, seat0, kinds(T), n, before_episode)
+                grand = traces if T == frozenset(seats) or partner != "greedy" else None
+                plays[key] = _mean_play(env, seat0, kinds(T), n, before_episode, seed0, grand)
             else:
-                plays[key] = _mean_play(env, "stay", kinds(T), n)
+                plays[key] = _mean_play(env, "stay", kinds(T), n, seed0=seed0)
         return plays[key]
 
     v = {T: (play(True, T)["soups"], play(False, T)["soups"]) for T in subsets}
@@ -91,6 +99,8 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None) -
         "s": s,
         "own_share": own_share,                       # share of soups the learner delivered itself
         "credit_gap": own_share - s,
+        # env-specific behaviour metrics of the learner in the real game (kitchen: hoarding, interceptions)
+        **{k[:-1] if k.endswith("0") else k: both[k] for k in getattr(env, "extra_metrics", ()) if k in both},
     }
 
 

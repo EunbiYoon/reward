@@ -31,6 +31,13 @@ class TwoSeat:
         if partner not in PARTNERS:
             raise ValueError(f"unknown partner {partner!r}; choose from {PARTNERS}")
 
+    def action_index(self, a) -> int:
+        return int(getattr(a, "value", a))
+
+    def scripted_index(self, kind: str, seat: int) -> int:
+        """Action index the scripted controller `kind` would take in `seat` right now."""
+        return self.action_index(self._scripted_action(kind, seat))
+
     def anneal_coef(self) -> float:
         return max(0.0, 1.0 - self.total_steps / self.anneal_steps)
 
@@ -56,12 +63,15 @@ class TwoSeat:
         return self._encode(0), ev, ev["done"]
 
     # ------------------------------------------------------------------ evaluation API
-    def play(self, seat0, partners, seed: int, frames: list | None = None) -> dict:
+    def play(self, seat0, partners, seed: int, frames: list | None = None,
+             trace: list | None = None) -> dict:
         """One episode. seat0: callable obs -> action index (a trained policy), 'greedy' or 'stay'.
         partners: 'greedy' or 'stay' for every partner seat, or a tuple with one kind per seat
         1 .. n-1 (mixed coalitions for the Shapley value). A 'stay' seat is frozen: parked where it
         blocks little and never moves. Returns episode totals. If `frames` is a list, appends
-        (rgb image, running totals) after every step, for videos."""
+        (rgb image, running totals) after every step, for videos. If `trace` is a list, appends one dict per
+        step: the learner's observation `obs`, every seat's action index `a` and the step's non-zero events
+        `ev` (see rlaif/)."""
         if isinstance(partners, str):
             partners = (partners,) * (self.n_agents - 1)
         assert len(partners) == self.n_agents - 1, f"need {self.n_agents - 1} partner kinds, got {partners}"
@@ -74,10 +84,15 @@ class TwoSeat:
             frames.append((self.render(self.renderer), dict(tot)))
         done = False
         while not done:
-            acts = [self._action(seat0(self._encode(0))) if callable(seat0)
+            obs0 = self._encode(0)
+            acts = [self._action(seat0(obs0)) if callable(seat0)
                     else self._scripted_action(seat0, 0)]
             acts += [self._scripted_action(k, i) for i, k in enumerate(partners, 1)]
             ev = self._joint_step(acts)
+            if trace is not None:
+                trace.append({"obs": obs0, "a": [self.action_index(a) for a in acts],
+                              "ev": {k: v for k, v in ev.items()
+                                     if v and k not in ("sparse", "own_sparse", "shaped0", "done", "terminal")}})
             for k in tot:
                 tot[k] += ev[k]
             done = ev["done"]

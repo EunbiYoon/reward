@@ -154,6 +154,38 @@ class ReplayBuffer:
                 torch.as_tensor(self.r[idx]), torch.as_tensor(obs_rms.normalize(self.o2[idx])))
 
 
+class PartnerHead(nn.Module):
+    """Auxiliary partner model (H12): predicts the partner's next action from the policy's TRUNK
+    (every layer of the categorical policy but the last), so the cross-entropy shapes the features the
+    policy acts on. Kept out of the policy module so checkpoints load unchanged."""
+
+    def __init__(self, hidden: int, n_partner_actions: int):
+        super().__init__()
+        self.head = nn.Linear(hidden, n_partner_actions)
+
+    def forward(self, policy: CategoricalPolicy, obs: torch.Tensor) -> torch.Tensor:
+        return self.head(policy.logits[:-1](obs))
+
+    def loss(self, policy: CategoricalPolicy, obs: torch.Tensor, partner_actions: torch.Tensor) -> torch.Tensor:
+        return nn.functional.cross_entropy(self(policy, obs), partner_actions.long())
+
+
+def make_partner_head(env, policy, hidden: int, aux_coef: float):
+    """PartnerHead for aux_coef > 0, else None. Needs a discrete policy and an env whose step events carry
+    the partner's action index as 'a1' (kitchen)."""
+    if aux_coef <= 0:
+        return None
+    if not getattr(policy, "discrete", False):
+        raise ValueError("the partner-prediction head needs a discrete policy")
+    return PartnerHead(hidden, env.n_actions)
+
+
+def partner_label(info: dict) -> int:
+    if "a1" not in info:
+        raise ValueError("--aux-coef > 0 needs an env that reports the partner's action ('a1'); use --env kitchen")
+    return int(info["a1"])
+
+
 def make_policy(env, hidden: int):
     if getattr(env, "discrete", False):
         return CategoricalPolicy(env.obs_dim, env.n_actions, hidden)

@@ -15,13 +15,14 @@ soups delivered by each cook, and the learner's onion and dish pickups.
     # one cook frozen, as in the Shapley evaluation
     python -m eval.visualize --run results/full --algo ppo --reward team --partner greedy --freeze partner
 
-    # 3 or 4 agents (warehouse / foraging only)
+    # 3 or 4 agents (warehouse / foraging / alem only)
     python -m eval.visualize --run results/lbf_n --algo ppo --reward team --agents 3
 """
 from __future__ import annotations
 
 import argparse
 import os
+import time
 
 import numpy as np
 
@@ -67,6 +68,10 @@ def side_by_side(clips: list[list[np.ndarray]]) -> list[np.ndarray]:
 
 
 def save(frames: list[np.ndarray], path: str, fps: int):
+    """Saves to `path` with the current time before the extension (clip.gif -> clip_20261110-153012.gif),
+    so a new recording never overwrites an old one."""
+    stem, ext = os.path.splitext(path)
+    path = f"{stem}_{time.strftime('%Y%m%d-%H%M%S')}{ext}"
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     if path.endswith(".mp4"):
         import matplotlib
@@ -102,16 +107,16 @@ def main():
     p.add_argument("--run", default="results/full")
     p.add_argument("--preview", action="store_true", help="scripted greedy cook in the learner seat")
     p.add_argument("--algo", default="ppo", choices=["ppo", "grpo", "a2c", "dqn", "sac"])
-    p.add_argument("--reward", default="team", choices=["pickup", "team", "individual"])
+    p.add_argument("--reward", default="team", choices=["learned", "team", "individual", "pickup"])
     p.add_argument("--partner", default="greedy", choices=["stay", "greedy"])
     p.add_argument("--seed", type=int, default=0, help="training seed of the checkpoint")
     p.add_argument("--episode", type=int, default=0, help="evaluation episode (seed 10000 + k)")
-    p.add_argument("--compare", action="store_true", help="the three rewards side by side")
+    p.add_argument("--compare", action="store_true", help="the run's rewards side by side")
     p.add_argument("--freeze", choices=["learner", "partner"],
                    help="freeze the learner or every partner (Shapley coalitions)")
     p.add_argument("--agents", type=int, default=2, choices=[2, 3, 4],
-                   help="number of agents (3, 4: warehouse / foraging only)")
-    p.add_argument("--env", default=None, choices=["kitchen", "warehouse", "foraging"],
+                   help="number of agents (3, 4: warehouse / foraging / alem only)")
+    p.add_argument("--env", default=None, choices=["kitchen", "warehouse", "foraging", "alem"],
                    help="default: the run's env, else kitchen")
     p.add_argument("--layout", default=None, help="default: the run's layout, else the env's default")
     p.add_argument("--steps", type=int, default=None, help="episode length to record (default: horizon)")
@@ -136,13 +141,13 @@ def main():
 
     if a.preview:
         frames = record(env, "greedy", seat1, seed, f"preview: greedy cook + {seat1} partner")
-        out = a.out or f"videos/preview_{seat1}.gif"
+        out = a.out or f"docs/videos/preview_{seat1}.gif"
     elif a.compare:
         clips = [record(env, load_actor(a.run, a.algo, rw, a.partner, a.seed, det, a.agents), seat1, seed,
                         f"{a.algo} {rw} reward, {seat1} partner")
-                 for rw in ("pickup", "team", "individual")]
+                 for rw in cfg.rewards]
         frames = side_by_side(clips)
-        out = a.out or f"videos/compare_{a.algo}_{a.partner}_s{a.seed}_ep{a.episode}.gif"
+        out = a.out or f"docs/videos/compare_{a.algo}_{a.partner}_s{a.seed}_ep{a.episode}.gif"
     else:
         seat0 = "stay" if a.freeze == "learner" else load_actor(a.run, a.algo, a.reward, a.partner,
                                                                  a.seed, det, a.agents)
@@ -150,7 +155,7 @@ def main():
         note = f" ({a.freeze} frozen)" if a.freeze else ""
         frames = record(env, seat0, seat1, seed, f"{a.algo} {a.reward} reward, {a.partner} partner{note}")
         n = f"_n{a.agents}" if a.agents != 2 else ""
-        out = a.out or f"videos/{a.algo}_{a.reward}_{a.partner}{n}_s{a.seed}_ep{a.episode}{tag}.gif"
+        out = a.out or f"docs/videos/{a.algo}_{a.reward}_{a.partner}{n}_s{a.seed}_ep{a.episode}{tag}.gif"
     save(frames, out, a.fps)
 
 

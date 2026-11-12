@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 .DS_Store
 results/*/models/
+logs/
+*.log
+*.zip
+results/*/resume/
+docs/paper/*.aux
+docs/paper/*.out
+docs/report/*.aux
+docs/report/*.out

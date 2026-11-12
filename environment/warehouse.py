@@ -64,6 +64,8 @@ class Warehouse(TwoSeat):
     n_actions = N_ACTIONS
     unit = "deliveries"
     pickup_kinds = ("requested", "other")
+    stay_action = STAY
+    action_names = ("NOOP", "FORWARD", "LEFT", "RIGHT", "TOGGLE_LOAD")
 
     def __init__(self, layout: str = "tiny", reward: str = "team", horizon: int = 500,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.15,

@@ -1,8 +1,9 @@
 """Two-cook Overcooked kitchen (official Overcooked-AI package, Carroll et al. 2019).
 
 Player 0 is the learner. Player 1 is a fixed partner:
-    stay    parked on a cell that blocks nothing and never moves (the learner must cook alone)
-    greedy  the package's scripted GreedyHumanModel (a competent teammate)
+    stay         parked on a cell that blocks nothing and never moves (the learner must cook alone)
+    greedy       the package's scripted GreedyHumanModel (a competent teammate)
+    ckpt:<path>  a trained checkpoint (e.g. a credit thief), frozen, acting from seat 1's view
 
 Game (package defaults): put 3 onions in a pot, INTERACT on the pot to start cooking,
 take a dish, scoop the soup and deliver it for +20. Episodes last `horizon` steps.
@@ -12,6 +13,9 @@ Training rewards (what the learner is paid; every run is SCORED on team soups):
                 onion or a dish, from anywhere. The bonus never fades.            -> H1
     team        team delivery reward + official shaping that fades out.            -> H2
     individual  the learner's OWN deliveries + official shaping that fades out.    -> H3
+    cf          counterfactual contribution (difference reward): team deliveries minus what the
+                partner delivers ALONE from the same start (learner parked), + fading shaping. Over
+                an episode it sums to v(L,P) - v(P), the learner's marginal contribution.  -> H10
 The official shaping (+3 ingredient into a pot, +3 useful dish pickup, +5 soup pickup) only
 helps the learner get started; it falls linearly to 0 over `anneal_steps` training steps.
 
@@ -23,11 +27,19 @@ from __future__ import annotations
 
 import numpy as np
 
-REWARDS = ("pickup", "team", "individual")
+REWARDS = ("pickup", "team", "individual", "cf")
 PARTNERS = ("stay", "greedy")
 N_ACTIONS = 6          # N, S, E, W, STAY, INTERACT
 STAY = 4               # index of Action.STAY
 SOUP = 20.0
+TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pickups0",
+              "onion_pickups1", "dish_pickups1")
+# Extra per-episode metrics of the learner (seat 0), reported by eval/coalitions.py:
+#   hold_steps0       steps holding anything
+#   hold_dish_steps0  steps holding a dish or a soup (resource hoarding, H11)
+#   soup_pickups0     soups scooped from a pot
+#   intercepts0       soups scooped from a pot the PARTNER filled with most of the onions (credit theft, H12)
+EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0")
 
 
 def _import_overcooked():
@@ -55,10 +67,16 @@ class Kitchen:
     n_actions = N_ACTIONS
     unit = "soups"
     pickup_kinds = ("onion", "dish")
+    stay_action = STAY
+    action_names = ("N", "S", "E", "W", "STAY", "INTERACT")
+    extra_metrics = EXTRA_METRICS
 
     def __init__(self, layout: str = "cramped_room", reward: str = "team", horizon: int = 400,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 3.0,
-                 n_agents: int = 2):
+                 n_agents: int = 2, noise: float = 0.0):
+        """noise: probability that a greedy PARTNER (seat 1) takes a uniformly random action instead
+        of its scripted one (a less competent teammate, H8). The learner seat is never noised, so the
+        scripted reference in the learner's seat stays the same cook."""
         if n_agents != 2:
             raise ValueError("kitchen (Overcooked-AI) supports exactly 2 cooks: the package's lossless "
                              "encoding and GreedyHumanModel assume 2 players. Use --env warehouse or "
@@ -66,19 +84,24 @@ class Kitchen:
         self.n_agents = 2
         if reward not in REWARDS:
             raise ValueError(f"unknown reward {reward!r}; choose from {REWARDS}")
-        if partner not in PARTNERS:
-            raise ValueError(f"unknown partner {partner!r}; choose from {PARTNERS}")
+        if partner not in PARTNERS and not partner.startswith("ckpt:"):
+            raise ValueError(f"unknown partner {partner!r}; choose from {PARTNERS} or ckpt:<path>")
         Action, OvercookedEnv, OvercookedGridworld = _import_overcooked()
         self.Action = Action
         self.layout, self.reward, self.horizon, self.partner = layout, reward, horizon, partner
         self.anneal_steps = max(1, int(anneal_steps))
         self.pickup_bonus = float(pickup_bonus)
+        self.noise = float(noise)
+        self._noise_rng = np.random.RandomState(0)
+        self._pot_fill: dict = {}       # pot cell -> [onions by seat 0, onions by seat 1]
+        self._cf_seed, self._cf_base = None, None
         self.mdp = OvercookedGridworld.from_layout_name(layout)
         self.env = OvercookedEnv.from_mdp(self.mdp, horizon=horizon)
         self.env.reset()
         self.obs_dim = int(np.prod(self._encode(self.env.state).shape))
         self.total_steps = 0            # training progress, drives the fading shaping
         self._greedy = {}               # seat -> GreedyHumanModel
+        self._ckpt = {}                 # path -> (policy, obs_rms) of a checkpoint partner
         self.renderer = "auto"          # auto | official | simple (videos only)
         self.t = 0
 
@@ -100,11 +123,32 @@ class Kitchen:
         return self._greedy[seat]
 
     def _scripted_action(self, kind: str, seat: int, state):
-        """Action object for a scripted seat: 'stay' or 'greedy'."""
+        """Action object for a fixed seat: 'stay', 'greedy' or 'ckpt:<path>' (a frozen trained policy)."""
         if kind == "stay":
             return self.Action.STAY
+        if kind.startswith("ckpt:"):
+            from train.deep_policy import act, load_checkpoint
+            path = kind[5:]
+            if path not in self._ckpt:
+                policy, obs_rms, meta = load_checkpoint(path)
+                if meta["obs_dim"] != self.obs_dim:
+                    raise ValueError(f"{path}: obs_dim {meta['obs_dim']} != {self.obs_dim}")
+                self._ckpt[path] = (policy, obs_rms)
+            policy, obs_rms = self._ckpt[path]
+            return self.Action.ALL_ACTIONS[act(policy, obs_rms, self._encode(state, seat), deterministic=False)]
         a = self.greedy(seat).action(state)
-        return a[0] if isinstance(a, tuple) else a
+        a = a[0] if isinstance(a, tuple) else a
+        if seat >= 1 and self.noise > 0 and self._noise_rng.rand() < self.noise:
+            a = self.Action.ALL_ACTIONS[self._noise_rng.randint(N_ACTIONS)]    # a partner's mistake
+        return a
+
+    def action_index(self, a) -> int:
+        return self.Action.ALL_ACTIONS.index(a)
+
+    def scripted_index(self, kind: str, seat: int) -> int:
+        """Action index the scripted controller `kind` would take in `seat` right now (used by the
+        mixed behaviours of rlaif/behaviors.py)."""
+        return self.action_index(self._scripted_action(kind, seat, self.env.state))
 
     def anneal_coef(self) -> float:
         return max(0.0, 1.0 - self.total_steps / self.anneal_steps)
@@ -129,6 +173,8 @@ class Kitchen:
 
     def _reset_core(self, seed: int, frozen: tuple = ()):
         np.random.seed(int(seed) % (2 ** 32))         # GreedyHumanModel uses the global RNG
+        self._noise_rng = np.random.RandomState((int(seed) + 7919) % (2 ** 32))   # partner mistakes
+        self._pot_fill = {}
         self.env.reset()
         for seat, agent in self._greedy.items():
             agent.reset()                   # the package's reset() also clears agent_index and mdp
@@ -161,6 +207,26 @@ class Kitchen:
             ev[f"onion_pickups{i}"] = int(prev[i] is None and now[i] == "onion")
             ev[f"dish_pickups{i}"] = int(prev[i] is None and now[i] == "dish")
             ev[f"pickups{i}"] = ev[f"onion_pickups{i}"] + ev[f"dish_pickups{i}"]
+        ev["a1"] = self.action_index(a1)                   # partner's action (label of the H12 head)
+        ev["hold_steps0"] = int(now[0] is not None)
+        ev["hold_dish_steps0"] = int(now[0] in ("dish", "soup"))
+        ev["soup_pickups0"] = ev["intercepts0"] = 0
+        for i, p in enumerate(state.players):
+            if prev[i] == now[i]:
+                continue
+            x, y = p.position
+            dx, dy = p.orientation
+            cell = (x + dx, y + dy)
+            grid = self.mdp.terrain_mtx
+            if not (0 <= cell[1] < len(grid) and 0 <= cell[0] < len(grid[0])) or grid[cell[1]][cell[0]] != "P":
+                continue
+            if prev[i] == "onion" and now[i] is None:        # an onion into this pot
+                self._pot_fill.setdefault(cell, [0, 0])[i] += 1
+            elif prev[i] == "dish" and now[i] == "soup":     # a soup scooped from this pot
+                fill = self._pot_fill.pop(cell, [0, 0])
+                if i == 0:
+                    ev["soup_pickups0"] = 1
+                    ev["intercepts0"] = int(fill[1] > fill[0])
         ev["done"] = bool(done or self.t >= self.horizon)
         return ev
 
@@ -169,10 +235,32 @@ class Kitchen:
             return ev["sparse"] + self.pickup_bonus * ev["pickups0"]
         if self.reward == "team":
             return ev["sparse"] + self.anneal_coef() * ev["shaped0"]
+        if self.reward == "cf":
+            base = self._cf_base[self.t - 1] if self.t - 1 < len(self._cf_base) else 0.0
+            return ev["sparse"] - base + self.anneal_coef() * ev["shaped0"]
         return ev["own_sparse"] + self.anneal_coef() * ev["shaped0"]     # individual
+
+    def _partner_alone(self, seed: int) -> np.ndarray:
+        """Per-step team delivery reward when the learner is parked and only the partner moves,
+        from the same start (the v(P) episode of eval/coalitions.py). Cached for the last seed,
+        so a GRPO group (G episodes from one seed) pays for it once."""
+        if self._cf_seed == seed:
+            return self._cf_base
+        out = []
+        if self.partner != "stay":
+            self._reset_core(seed, (0,))
+            done = False
+            while not done:
+                ev = self._joint_step(self.Action.STAY, self._scripted_action(self.partner, 1, self.env.state))
+                out.append(ev["sparse"])
+                done = ev["done"]
+        self._cf_seed, self._cf_base = seed, np.asarray(out, np.float32)
+        return self._cf_base
 
     # ------------------------------------------------------------------ training API
     def reset(self, seed: int) -> np.ndarray:
+        if self.reward == "cf":
+            self._partner_alone(seed)
         self._reset_core(seed, (1,) if self.partner == "stay" else ())
         return self._encode(self.env.state)
 
@@ -186,26 +274,33 @@ class Kitchen:
         return self._encode(self.env.state), ev, ev["done"]
 
     # ------------------------------------------------------------------ evaluation API
-    def play(self, seat0, seat1: str, seed: int, frames: list | None = None) -> dict:
+    def play(self, seat0, seat1: str, seed: int, frames: list | None = None,
+             trace: list | None = None) -> dict:
         """One episode. seat0: callable obs -> action index (a trained policy), 'greedy' or 'stay'.
         seat1: 'greedy' or 'stay'. A 'stay' cook is frozen: parked on a cell that blocks no
         pot, dispenser or counter (see parking_cells), and never moves. Returns episode totals. If `frames` is a list, appends
-        (rgb image, running totals) after every step, for videos."""
+        (rgb image, running totals) after every step, for videos. If `trace` is a list, appends one dict per
+        step: the learner's observation `obs`, every seat's action index `a` and the step's non-zero events
+        `ev` (what the LLM judge reads and the reward model is trained on, see rlaif/)."""
         frozen = tuple(i for i, s in enumerate((seat0, seat1)) if isinstance(s, str) and s == "stay")
         self._reset_core(seed, frozen)
         tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1",
-                                "onion_pickups0", "dish_pickups0")}
+                                "onion_pickups0", "dish_pickups0", *EXTRA_METRICS)}
         if frames is not None:
             frames.append((self.render(self.renderer), dict(tot)))
         done = False
         while not done:
             st = self.env.state
+            obs0 = self._encode(st)
             if callable(seat0):
-                a0 = self.Action.ALL_ACTIONS[int(seat0(self._encode(st)))]
+                a0 = self.Action.ALL_ACTIONS[int(seat0(obs0))]
             else:
                 a0 = self._scripted_action(seat0, 0, st)
             a1 = self._scripted_action(seat1, 1, st)
             ev = self._joint_step(a0, a1)
+            if trace is not None:
+                trace.append({"obs": obs0, "a": [self.action_index(a0), self.action_index(a1)],
+                              "ev": {k: v for k, v in ev.items() if k in TRACE_KEYS and v}})
             for k in tot:
                 tot[k] += ev[k]
             done = ev["done"]

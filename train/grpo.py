@@ -19,7 +19,8 @@ import numpy as np
 import torch
 from torch import nn
 
-from .deep_policy import RunningMeanStd, make_policy, to_env_action
+from .resume import Resumer, base_env
+from .deep_policy import RunningMeanStd, make_partner_head, make_policy, partner_label, to_env_action
 
 
 @dataclass
@@ -34,6 +35,9 @@ class GRPODeepConfig:
     max_grad_norm: float = 0.5
     advantage: str = "process"
     hidden: int = 64
+    aux_coef: float = 0.0     # > 0: auxiliary partner-action prediction on the policy trunk (H12)
+    resume_path: str = ""     # mid-training checkpoint (train/resume.py); "" = none
+    save_every_s: float = 300.0
 
 
 def _advantages(rewards: list[np.ndarray], gamma: float, mode: str) -> list[np.ndarray] | None:
@@ -63,13 +67,32 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
     """env: environment.Kitchen (or any env with the same interface). Returns (policy, obs_rms, log)."""
     torch.manual_seed(seed)
     policy = make_policy(env, cfg.hidden)
-    opt = torch.optim.Adam(policy.parameters(), lr=cfg.lr)
+    head = make_partner_head(env, policy, cfg.hidden, cfg.aux_coef)
+    params = list(policy.parameters()) + (list(head.parameters()) if head else [])
+    opt = torch.optim.Adam(params, lr=cfg.lr)
     obs_rms = RunningMeanStd(env.obs_dim)
 
     steps, updates, skipped, group_means = 0, 0, 0, []
+    res = Resumer(cfg.resume_path, cfg.save_every_s)
+    st = res.load()
+    if st:
+        policy.load_state_dict(st["policy"]); opt.load_state_dict(st["opt"])
+        if head is not None:
+            head.load_state_dict(st["head"])
+        obs_rms = RunningMeanStd.from_state(st["obs_rms"])
+        steps, updates, skipped, group_means = st["steps"], st["updates"], st["skipped"], st["group_means"]
+        base_env(env).total_steps = st["env_total_steps"]
+        torch.set_rng_state(st["torch_rng"])
+
+    def state():
+        return {"policy": policy.state_dict(), "opt": opt.state_dict(),
+                "head": head.state_dict() if head is not None else None, "obs_rms": obs_rms.state(),
+                "steps": steps, "updates": updates, "skipped": skipped, "group_means": group_means,
+                "env_total_steps": base_env(env).total_steps, "torch_rng": torch.get_rng_state()}
+
     while steps < cfg.env_steps:
         reset_seed = seed * 100_000 + updates
-        O, A, LP, rewards = [], [], [], []
+        O, A, LP, P1, rewards = [], [], [], [], []
         for _ in range(cfg.group_size):
             obs = env.reset(reset_seed)
             o_ep, a_ep, lp_ep, r_ep = [], [], [], []
@@ -82,6 +105,8 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
                 a = to_env_action(a)
                 obs, info, done = env.step(a)
                 o_ep.append(o); a_ep.append(a); lp_ep.append(lp.item()); r_ep.append(info["proxy"])
+                if head is not None:
+                    P1.append(partner_label(info))
             steps += len(r_ep)
             O += o_ep; A += a_ep; LP += lp_ep
             rewards.append(np.asarray(r_ep, np.float32))
@@ -91,6 +116,7 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
         advs = _advantages(rewards, cfg.gamma, cfg.advantage)
         if advs is None:
             skipped += 1
+            res.maybe_save(state)
             continue
         adv = np.concatenate(advs)
         adv = adv / (adv.std() + 1e-8)
@@ -99,6 +125,7 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
         At = torch.as_tensor(np.asarray(A, np.int64 if policy.discrete else np.float32))
         LPt = torch.as_tensor(np.asarray(LP, np.float32))
         ADVt = torch.as_tensor(adv)
+        P1t = torch.as_tensor(np.asarray(P1, np.int64)) if head is not None else None
         n = len(ADVt)
         for _ in range(cfg.epochs):
             perm = torch.randperm(n)
@@ -109,14 +136,19 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
                 a_mb = ADVt[idx]
                 loss = -torch.min(ratio * a_mb,
                                   ratio.clamp(1 - cfg.clip_eps, 1 + cfg.clip_eps) * a_mb).mean()
+                if head is not None:
+                    loss = loss + cfg.aux_coef * head.loss(policy, Ot[idx], P1t[idx])
                 opt.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(policy.parameters(), cfg.max_grad_norm)
+                nn.utils.clip_grad_norm_(params, cfg.max_grad_norm)
                 opt.step()
+        res.maybe_save(state)
         if log_every and updates % log_every == 0:
             print(f"    grpo seed={seed} steps={steps} proxy_ep_return={group_means[-1]:.2f}", flush=True)
 
     log = {"env_steps_used": steps, "updates": updates, "episodes": updates * cfg.group_size,
            "grpo_skipped_groups": skipped,
            "train_proxy_return_last5": float(np.mean(group_means[-5:])) if group_means else float("nan")}
+    if head is not None:
+        log["_partner_head"] = head       # popped by eval/run.py (held-out prediction accuracy)
     return policy, obs_rms, log
