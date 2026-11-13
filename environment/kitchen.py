@@ -16,6 +16,9 @@ Training rewards (what the learner is paid; every run is SCORED on team soups):
     cf          counterfactual contribution (difference reward): team deliveries minus what the
                 partner delivers ALONE from the same start (learner parked), + fading shaping. Over
                 an episode it sums to v(L,P) - v(P), the learner's marginal contribution.  -> H10
+    prep        prep crowding-out: only the onions the LEARNER puts into a pot, 20/3 each (a soup's worth
+                per 3 onions), never annealed. The mirror of `individual`: it pays for the first step
+                of the recipe instead of the last, so the learner takes over the partner's preparation.
 The official shaping (+3 ingredient into a pot, +3 useful dish pickup, +5 soup pickup) only
 helps the learner get started; it falls linearly to 0 over `anneal_steps` training steps.
 
@@ -27,7 +30,7 @@ from __future__ import annotations
 
 import numpy as np
 
-REWARDS = ("pickup", "team", "individual", "cf")
+REWARDS = ("pickup", "team", "individual", "cf", "prep")
 PARTNERS = ("stay", "greedy")
 N_ACTIONS = 6          # N, S, E, W, STAY, INTERACT
 STAY = 4               # index of Action.STAY
@@ -39,7 +42,8 @@ TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pic
 #   hold_dish_steps0  steps holding a dish or a soup (resource hoarding, H11)
 #   soup_pickups0     soups scooped from a pot
 #   intercepts0       soups scooped from a pot the PARTNER filled with most of the onions (credit theft, H12)
-EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0")
+#   pot_onions0       onions the learner put into a pot (prep crowding-out)
+EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0", "pot_onions0")
 
 
 def _import_overcooked():
@@ -211,6 +215,7 @@ class Kitchen:
         ev["hold_steps0"] = int(now[0] is not None)
         ev["hold_dish_steps0"] = int(now[0] in ("dish", "soup"))
         ev["soup_pickups0"] = ev["intercepts0"] = 0
+        ev["pot_onions0"] = ev["pot_onions1"] = 0
         for i, p in enumerate(state.players):
             if prev[i] == now[i]:
                 continue
@@ -221,6 +226,7 @@ class Kitchen:
             if not (0 <= cell[1] < len(grid) and 0 <= cell[0] < len(grid[0])) or grid[cell[1]][cell[0]] != "P":
                 continue
             if prev[i] == "onion" and now[i] is None:        # an onion into this pot
+                ev[f"pot_onions{i}"] = 1
                 self._pot_fill.setdefault(cell, [0, 0])[i] += 1
             elif prev[i] == "dish" and now[i] == "soup":     # a soup scooped from this pot
                 fill = self._pot_fill.pop(cell, [0, 0])
@@ -231,6 +237,8 @@ class Kitchen:
         return ev
 
     def _proxy(self, ev: dict) -> float:
+        if self.reward == "prep":
+            return SOUP / 3 * ev["pot_onions0"]
         if self.reward == "pickup":
             return ev["sparse"] + self.pickup_bonus * ev["pickups0"]
         if self.reward == "team":

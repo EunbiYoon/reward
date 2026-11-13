@@ -37,8 +37,10 @@ a credit gap of 0.82 against 0.13 for a scripted teammate). Theft raises the tea
 success-based supervisor accepts 9 of 13 theft runs. LLM judges do no better: an open 27B model and
 GPT-4o both give the thief 0.90--0.92 of the credit, because their credit tracks who delivered the
 result ($r=0.94$) rather than who contributed ($r\le0.35$). They see through busy work and idling, which
-deliver nothing, and miss only the member that finishes others' work. Contribution has to be measured
-with counterfactuals; outcomes and transcripts are not enough.
+deliver nothing, and miss only the member that finishes others' work. When a learned preparer and the
+thief split the work exactly in half, both judges give a preparer that could have done everything
+alone no more credit than one that could not. Contribution has to be measured with
+counterfactuals; outcomes and transcripts are not enough.
 \end{abstract}
 
 \section{Introduction}
@@ -190,6 +192,37 @@ lowers the thief's credit only to about 0.7 in a first \PENDING{6} pairs \PENDIN
 Given the solo results, Qwen computes the leave-one-out gain correctly (``without agent 0 the team
 scores 7, so agent 0 adds 4'') but ignores that the thief alone delivers nothing.
 
+\textbf{A learned preparer next to the thief.} To compare two learned members, we train a second
+PPO agent (B) with the team reward next to the frozen thief. Since the thief never touches an onion,
+B learns to do all the preparation (37 onions per episode, no deliveries) while the thief delivers
+every soup. Neither can cook alone ($v_1=v_2=0$), so each deserves exactly half
+(Shapley $s=0.50$). We record 20 episodes of B and of the scripted cook, each next to the thief, and
+ask the judges for the seat-0 member's share (Table~\ref{tab:team}).
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+seat-0 member (next to thief) & alone & $s$ & GPT-4o & Qwen \\
+\midrule
+learned preparer B & 0 & 0.48 & 0.33 & 0.47 \\
+scripted cook & 7.2 & 0.96 & 0.30 & 0.43 \\
+\bottomrule
+\end{tabular}
+\caption{Both members prepare and the thief delivers; only the scripted cook could have cooked alone.
+Judge credit for the seat-0 member (60 pairs); B averaged over two training seeds.}
+\label{tab:team}
+\end{table}
+
+Neither judge gives the preparer nothing, as pure delivery counting would: GPT-4o calls the onions
+``necessary for agent 1 to complete the deliveries''. Qwen splits the work almost evenly (0.47), while
+GPT-4o still gives the finisher two thirds (B: 0.33). Both fail in the same way on the second row. The
+scripted cook's Shapley share is 0.96 because it could have produced 7 soups alone, yet both judges
+give it the same credit as B or less (0.30 and 0.43; $r=-0.34$ and $-0.50$ with $s$). The two logs
+look alike, and nothing in them shows what either member would have done alone. GPT-4o's stated reasons
+instead credit seat 0 with differences in the team's total.
+
 \section{When does a collective add value?}\label{sec:collective}
 The reference team shows why theft hides. One scripted cook alone delivers 7.0 soups; two deliver
 9.1. The second member adds 2.1 soups, a collective gain of 30\% for twice the agents. When the
@@ -204,7 +237,7 @@ success, and giving LLM overseers counterfactual evidence rather than only trans
 incentive is not enough: a difference reward that pays nothing for results the partner would have
 produced stops theft for one optimizer only by making the agent a spectator
 (Appendix~\ref{app:cf}). Our evidence comes from one small two-player task with exact Shapley values,
-small policies, scripted partners and two judge models; larger teams need sampled Shapley values, and a
+small policies, mostly scripted partners and two judge models; larger teams need sampled Shapley values, and a
 frozen member still occupies space in the kitchen.
 
 \small

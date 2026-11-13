@@ -17,6 +17,8 @@ minibatch 500, lr 3e-4, gamma 0.99, lambda 0.98, entropy 0.01, hidden 128 (eval/
 """
 from __future__ import annotations
 
+import csv
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -45,6 +47,21 @@ class PPOConfig:
     aux_coef: float = 0.0     # > 0: auxiliary partner-action prediction on the policy trunk (H12)
     resume_path: str = ""     # mid-training checkpoint (train/resume.py); "" = none
     save_every_s: float = 300.0
+    curve_path: str = ""      # CSV learning curve, one row per update ("" = none); see scripts/plot_curves.py
+
+
+# per-episode totals written to the learning curve (keys of the info dict the env returns each step)
+CURVE_KEYS = ("soups", "own_soups", "partner_soups", "pickups0", "hold_dish_steps0", "pot_onions0", "pot_onions1")
+
+
+def write_curve(path: str, row: dict):
+    """Append one row to the learning-curve CSV (header on first write)."""
+    new = not os.path.exists(path)
+    with open(path, "a", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(row))
+        if new:
+            w.writeheader()
+        w.writerow(row)
 
 
 def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
@@ -60,6 +77,9 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
 
     ep_seed = seed * 100_000                       # each episode starts from its own seed
     steps, updates, ep_proxy, ep_returns = 0, 0, 0.0, []
+    ep_tot = {k: 0.0 for k in CURVE_KEYS}          # this episode's totals, for the learning curve
+    ep_len = 0
+    done_eps: list = []                            # finished episodes of the current rollout
 
     # ---------------------------------------------------------------- resume after an interruption
     res = Resumer(cfg.resume_path, cfg.save_every_s)
@@ -107,6 +127,9 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
             if head is not None:
                 P1[t] = partner_label(info)
             ep_proxy += info["proxy"]
+            for k in CURVE_KEYS:
+                ep_tot[k] += float(info.get(k, 0.0))
+            ep_len += 1
             steps += 1
             # (4) end of an episode (400 steps): bootstrap the cut, start the next episode
             if done:
@@ -115,7 +138,9 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
                         R[t] += cfg.gamma * value(torch.as_tensor(obs_rms.normalize(obs)[None])).item()
                 END[t] = 1.0
                 ep_returns.append(ep_proxy)
-                ep_proxy = 0.0
+                done_eps.append({"proxy_return": ep_proxy, **ep_tot, "length": ep_len})
+                ep_proxy, ep_len = 0.0, 0
+                ep_tot = {k: 0.0 for k in CURVE_KEYS}
                 ep_seed += 1
                 obs = env.reset(ep_seed)
         with torch.no_grad():
@@ -160,6 +185,20 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
                 nn.utils.clip_grad_norm_(params, cfg.max_grad_norm)
                 opt.step()
         updates += 1
+        if cfg.curve_path and done_eps:
+            # mean over the episodes that ended in this rollout (10 with 4000-step rollouts of 400)
+            m = {k: float(np.mean([e[k] for e in done_eps])) for k in done_eps[0]}
+            write_curve(cfg.curve_path, {
+                "update": updates, "env_steps": steps, "episodes": len(done_eps),
+                "proxy_return": round(m["proxy_return"], 3),        # what PPO maximizes
+                "team_soups": round(m["soups"], 3),                 # the true objective
+                "own_soups": round(m["own_soups"], 3), "partner_soups": round(m["partner_soups"], 3),
+                "pickups": round(m["pickups0"], 2),                 # learner's onion + dish pickups
+                "hold_dish_frac": round(m["hold_dish_steps0"] / m["length"], 3),   # time holding a dish/soup
+                "own_pot_onions": round(m["pot_onions0"], 2),        # onions the learner put into pots
+                "partner_pot_onions": round(m["pot_onions1"], 2),    # onions the partner put into pots
+                "shaping_coef": round(float(getattr(base_env(env), "anneal_coef", lambda: float("nan"))()), 3)})
+        done_eps = []
         res.maybe_save(state)                        # checkpoint every save_every_s seconds
         if log_every and updates % log_every == 0 and ep_returns:
             print(f"    ppo seed={seed} steps={steps} proxy_ep_return={np.mean(ep_returns[-5:]):.2f}",

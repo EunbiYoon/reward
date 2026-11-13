@@ -74,7 +74,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
             if not learner_moves and not T:
                 plays[key] = {"soups": 0.0}                             # v(empty) = 0
             elif learner_moves:
-                grand = traces if T == frozenset(seats) or partner != "greedy" else None
+                grand = traces if T == frozenset(seats) or partner == "stay" else None
                 plays[key] = _mean_play(env, seat0, kinds(T), n, before_episode, seed0, grand)
             else:
                 plays[key] = _mean_play(env, "stay", kinds(T), n, seed0=seed0)

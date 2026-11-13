@@ -95,7 +95,7 @@ def ckpt_name(algo: str, reward: str, partner: str, seed: int, n_agents: int = 2
     return f"{algo}_{reward}_{partner}{n}{tag}_s{seed}.pt"
 
 
-def train(env, algo: str, cfg: Config, seed: int, resume_path: str = ""):
+def train(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_path: str = ""):
     if cfg.aux_coef > 0 and algo not in ("ppo", "grpo"):
         raise ValueError(f"--aux-coef (partner-prediction head) is implemented for ppo and grpo, not {algo}")
     if algo == "ppo":
@@ -105,7 +105,7 @@ def train(env, algo: str, cfg: Config, seed: int, resume_path: str = ""):
                        minibatch=cfg.ppo_minibatch, lr=cfg.ppo_lr, clip_eps=cfg.clip_eps,
                        vf_coef=cfg.vf_coef, ent_coef=cfg.ent_coef,
                        max_grad_norm=cfg.max_grad_norm, hidden=cfg.hidden, aux_coef=cfg.aux_coef,
-                       resume_path=resume_path)
+                       resume_path=resume_path, curve_path=curve_path)
         return train_ppo(env, pc, seed)
     if algo == "grpo":
         from train.grpo import GRPODeepConfig, train_grpo_deep
@@ -153,8 +153,12 @@ def run_job(args):
         else:
             os.makedirs(os.path.join(out, "resume"), exist_ok=True)
             resume_path = os.path.join(out, "resume", name)
+    os.makedirs(os.path.join(out, "curves"), exist_ok=True)
+    curve_path = os.path.join(out, "curves", name.removesuffix(".pt") + ".csv")   # PPO learning curve
+    if not resume_path and os.path.exists(curve_path):
+        os.remove(curve_path)                       # a fresh run starts a fresh curve
     env = make_env(cfg, reward, partner, n_agents)
-    policy, obs_rms, log = train(env, algo, cfg, seed, resume_path)
+    policy, obs_rms, log = train(env, algo, cfg, seed, resume_path, curve_path)
     head = log.pop("_partner_head", None)
     train_s = time.time() - t0
 
@@ -307,7 +311,7 @@ def parse_args():
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
     p.add_argument("--agents", type=int, nargs="+", choices=[2, 3, 4],
                    help="number of agents (learner + identical partners); 3 and 4 need warehouse, foraging or alem")
-    p.add_argument("--rewards", nargs="+", choices=["learned", "team", "individual", "pickup", "cf"],
+    p.add_argument("--rewards", nargs="+", choices=["learned", "team", "individual", "pickup", "cf", "prep"],
                    help="cf = counterfactual contribution reward (H10, kitchen only)")
     p.add_argument("--reward-model", help="rm_<judge>.pt from python -m rlaif.reward_model (reward 'learned')")
     p.add_argument("--partners", nargs="+", help="stay, greedy, or ckpt:<path> (a frozen trained partner)")

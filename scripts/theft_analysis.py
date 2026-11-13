@@ -1,6 +1,7 @@
 """How each LLM judge credits the credit thief, per judge file in a judge run.
 
     venv/bin/python scripts/theft_analysis.py [results/rlaif/theft]
+    venv/bin/python scripts/theft_analysis.py results/rlaif/teamwork   # A (thief) partner + B (cook) in seat 0
 
 For every judgments_<judge>.jsonl (shapley oracle skipped) and every seat-0 behaviour:
   judge credit   mean credit share the judge gives agent 0
@@ -26,6 +27,14 @@ NAMES = {"greedy": "scripted cook", "fidget": "blocker", "ckpt:ppo_individual_gr
          "ckpt:grpo_team_greedy_s0": "spectator", "ckpt:ppo_pickup_greedy_s0": "fake help"}
 
 
+def label(beh: str) -> str:
+    if beh in NAMES:
+        return NAMES[beh]
+    if beh.startswith("ckpt:ppo_team_ckpt:"):                 # B: trained next to the thief partner
+        return "B cook " + beh.rsplit("_", 1)[-1]
+    return beh[:14]
+
+
 def loo(r):
     return (r["soups"] - r["v_partner_alone"]) / r["soups"] if r["soups"] else float("nan")
 
@@ -45,15 +54,17 @@ for path in sorted(glob.glob(os.path.join(run, "judgments_*.jsonl"))):
         continue
     print(f"\n== {name}: {sum(len(v) for v in cred.values()) // 2} pairs")
     print(f"{'behaviour':14s} {'n':>3s} {'judge':>6s} {'own o':>6s} {'loo':>6s} {'Shapley':>7s}")
-    for beh, label in NAMES.items():
+    behs = list(NAMES) + sorted({pool[t]["behavior"] for t in cred} - set(NAMES))
+    for beh in behs:
         ids = [t for t in cred if pool[t]["behavior"] == beh]
         if not ids:
             continue
+        name = label(beh)
         jc = np.mean([np.mean(cred[t]) for t in ids])
         o = np.mean([pool[t]["own_share"] for t in ids])
-        lo = np.mean([loo(pool[t]) for t in ids])
+        lo = np.nanmean([loo(pool[t]) for t in ids])
         s = np.mean([pool[t]["s"] for t in ids])
-        print(f"{label:14s} {len(ids):3d} {jc:6.2f} {o:6.2f} {lo:6.2f} {s:7.2f}")
+        print(f"{name:14s} {len(ids):3d} {jc:6.2f} {o:6.2f} {lo:6.2f} {s:7.2f}")
     ids = [t for t in cred if pool[t]["soups"] > 0]
     if len(ids) > 3:
         jc = np.array([np.mean(cred[t]) for t in ids])

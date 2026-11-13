@@ -93,7 +93,8 @@ def main():
     p.add_argument("--layout")
     p.add_argument("--horizon", type=int)
     p.add_argument("--agents", type=int, default=2)
-    p.add_argument("--partners", nargs="+", default=["stay", "greedy"], choices=["stay", "greedy"])
+    p.add_argument("--partners", nargs="+", default=["stay", "greedy"],
+                   help="stay, greedy, or ckpt:<path> (a frozen trained partner)")
     p.add_argument("--behaviors", nargs="+", default=list(BUILTIN))
     p.add_argument("--policies", nargs="*", default=[],
                    help="glob(s) of trained checkpoints added as behaviours, e.g. results/full/models/*.pt")
