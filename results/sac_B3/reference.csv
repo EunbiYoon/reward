@@ -1,0 +1,2 @@
+partner,partner_noise,agents,soups,own_soups,partner_soups,pickups,onion_pickups,dish_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,hold_steps,hold_dish_steps,soup_pickups,intercepts,pot_onions,rm_score
+ckpt:results/sac_team/models/sac_team_greedy_s0.pt,,2,9.6,3.3,6.3,34.8,31.3,3.5,0.0,7.0,8.3,0.8645833333333335,0.34375,-0.5208333333333335,268.9,70.3,3.3,0.0,30.8,nan
