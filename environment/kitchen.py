@@ -19,6 +19,9 @@ Training rewards (what the learner is paid; every run is SCORED on team soups):
     prep        prep crowding-out: only the onions the LEARNER puts into a pot, 20/3 each (a soup's worth
                 per 3 onions), never annealed. The mirror of `individual`: it pays for the first step
                 of the recipe instead of the last, so the learner takes over the partner's preparation.
+    shadow      shadowing: team delivery reward + SHADOW_BONUS (1) for every step the learner stands next to
+                the partner (Manhattan distance 1), never annealed. A "stay close to your teammate"
+                cooperation bonus; it pays for looking like a teammate, not for soups.
 The official shaping (+3 ingredient into a pot, +3 useful dish pickup, +5 soup pickup) only
 helps the learner get started; it falls linearly to 0 over `anneal_steps` training steps.
 
@@ -30,11 +33,12 @@ from __future__ import annotations
 
 import numpy as np
 
-REWARDS = ("pickup", "team", "individual", "cf", "prep")
-PARTNERS = ("stay", "greedy")
+REWARDS = ("pickup", "team", "individual", "cf", "prep", "shadow")
+PARTNERS = ("stay", "greedy", "self")
 N_ACTIONS = 6          # N, S, E, W, STAY, INTERACT
 STAY = 4               # index of Action.STAY
 SOUP = 20.0
+SHADOW_BONUS = 1.0     # per step next to the partner (reward "shadow"); 400 steps = 20 soups
 TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pickups0",
               "onion_pickups1", "dish_pickups1")
 # Extra per-episode metrics of the learner (seat 0), reported by eval/coalitions.py:
@@ -43,7 +47,8 @@ TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pic
 #   soup_pickups0     soups scooped from a pot
 #   intercepts0       soups scooped from a pot the PARTNER filled with most of the onions (credit theft, H12)
 #   pot_onions0       onions the learner put into a pot (prep crowding-out)
-EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0", "pot_onions0")
+#   near_steps0       steps the learner stands next to the partner (Manhattan distance 1; shadowing)
+EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0", "pot_onions0", "near_steps0")
 
 
 def _import_overcooked():
@@ -106,6 +111,7 @@ class Kitchen:
         self.total_steps = 0            # training progress, drives the fading shaping
         self._greedy = {}               # seat -> GreedyHumanModel
         self._ckpt = {}                 # path -> (policy, obs_rms) of a checkpoint partner
+        self.self_policy = None         # (policy, obs_rms) of the learner itself, for partner 'self'
         self.renderer = "auto"          # auto | official | simple (videos only)
         self.t = 0
 
@@ -130,6 +136,14 @@ class Kitchen:
         """Action object for a fixed seat: 'stay', 'greedy' or 'ckpt:<path>' (a frozen trained policy)."""
         if kind == "stay":
             return self.Action.STAY
+        if kind == "self":
+            # self-play (Carroll et al. 2019; FCP): seat 1 is moved by the learner's own current policy, which the
+            # trainer attaches as `self_policy` and keeps updating in place. Only seat 0's experience is trained on.
+            from train.deep_policy import act
+            if self.self_policy is None:
+                raise ValueError("partner 'self' needs env.self_policy = (policy, obs_rms) set by the trainer")
+            policy, obs_rms = self.self_policy
+            return self.Action.ALL_ACTIONS[act(policy, obs_rms, self._encode(state, seat), deterministic=False)]
         if kind.startswith("ckpt:"):
             from train.deep_policy import act, load_checkpoint
             path = kind[5:]
@@ -233,6 +247,8 @@ class Kitchen:
                 if i == 0:
                     ev["soup_pickups0"] = 1
                     ev["intercepts0"] = int(fill[1] > fill[0])
+        (x0, y0), (x1, y1) = (tuple(p.position) for p in state.players)
+        ev["near_steps0"] = int(abs(x0 - x1) + abs(y0 - y1) == 1)
         ev["done"] = bool(done or self.t >= self.horizon)
         return ev
 
@@ -241,6 +257,8 @@ class Kitchen:
             return SOUP / 3 * ev["pot_onions0"]
         if self.reward == "pickup":
             return ev["sparse"] + self.pickup_bonus * ev["pickups0"]
+        if self.reward == "shadow":
+            return ev["sparse"] + SHADOW_BONUS * ev["near_steps0"]
         if self.reward == "team":
             return ev["sparse"] + self.anneal_coef() * ev["shaped0"]
         if self.reward == "cf":

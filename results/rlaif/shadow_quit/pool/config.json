@@ -1,0 +1,26 @@
+{
+  "env": "kitchen",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "ckpt:results/full/models/ppo_team_greedy_s0.pt"
+  ],
+  "behaviors": [
+    "greedy",
+    "eps25",
+    "eps50",
+    "random",
+    "fidget",
+    "stay",
+    "ckpt:results/ppo_B4/models/ppo_shadow_ckpt-ppo_team_greedy_s0_s0.pt"
+  ],
+  "policies": [
+    "results/ppo_B4/models/ppo_shadow_ckpt-ppo_team_greedy_s0_s0.pt",
+    "results/ppo_quit/models/*.pt"
+  ],
+  "episodes": 20,
+  "workers": 6,
+  "out": "results/rlaif/shadow_quit",
+  "pool_seed0": 50000
+}

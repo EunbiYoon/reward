@@ -208,6 +208,8 @@ def reference(cfg: Config) -> list[dict]:
         c = replace(cfg, partner_noise=noise)
         for n_agents in cfg.agents:
             for partner in cfg.partners:
+                if partner == "self":         # no fixed partner to put the scripted cook next to
+                    continue
                 env = make_env(c, "team", partner, n_agents)
                 traces: list = []
                 met = evaluate_coalitions(env, "greedy", partner, cfg.eval_episodes,
@@ -235,6 +237,9 @@ def preflight(cfg: Config):
             try:
                 for reward in cfg.rewards:
                     env = make_env(variant_cfgs(cfg)[-1], reward, partner, n_agents)
+                    if partner == "self":         # self-play: an untrained policy stands in for the learner
+                        from train.deep_policy import RunningMeanStd, make_policy
+                        env.self_policy = (make_policy(env, cfg.hidden), RunningMeanStd(env.obs_dim))
                     env.reset(0)
                     for a in range(env.n_actions):
                         env.step(a)
@@ -311,7 +316,7 @@ def parse_args():
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
     p.add_argument("--agents", type=int, nargs="+", choices=[2, 3, 4],
                    help="number of agents (learner + identical partners); 3 and 4 need warehouse, foraging or alem")
-    p.add_argument("--rewards", nargs="+", choices=["learned", "team", "individual", "pickup", "cf", "prep"],
+    p.add_argument("--rewards", nargs="+", choices=["learned", "team", "individual", "pickup", "cf", "prep", "shadow"],
                    help="cf = counterfactual contribution reward (H10, kitchen only)")
     p.add_argument("--reward-model", help="rm_<judge>.pt from python -m rlaif.reward_model (reward 'learned')")
     p.add_argument("--partners", nargs="+", help="stay, greedy, or ckpt:<path> (a frozen trained partner)")

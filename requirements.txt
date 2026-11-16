@@ -14,3 +14,4 @@ scipy>=1.10   # optional: exact t intervals (falls back to a table)
 # LLM-as-a-judge (rlaif/judge.py --judge claude)
 anthropic>=2.0
 pydantic>=2.0
+tensorboard

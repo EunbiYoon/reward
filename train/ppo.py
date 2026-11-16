@@ -92,6 +92,8 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
         steps, updates, ep_seed, ep_returns = st["steps"], st["updates"], st["ep_seed"] + 1, st["ep_returns"]
         base_env(env).total_steps = st["env_total_steps"]     # keeps the shaping anneal where it was
         torch.set_rng_state(st["torch_rng"])
+    if getattr(base_env(env), "partner", None) == "self":
+        base_env(env).self_policy = (policy, obs_rms)   # self-play: seat 1 plays the live policy (updated in place)
     obs = env.reset(ep_seed)
 
     def state():
