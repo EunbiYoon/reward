@@ -14,7 +14,7 @@ Mac (PPO)
 - [O] `venv/bin/python -m eval.run --algos ppo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/ppo/A --workers 3`
 
 Windows (GRPO)
-- [ ] `.\venv\Scripts\python -m eval.run --algos grpo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/A --workers 3`
+- [O] `.\venv\Scripts\python -m eval.run --algos grpo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/A --workers 3`
 
 결과 확인 (2단계 B 전에 꼭):
 - [ ] `results/<algo>/A/results.csv`에서 seed 0의 팀 수프(soups)가 0에 가깝지 않은지. 예전 PPO-A는 11.0개(전부 직접 배달),
