@@ -1,0 +1,67 @@
+{
+  "env": "kitchen",
+  "layout": "cramped_room",
+  "rewards": [
+    "pickup",
+    "team",
+    "individual"
+  ],
+  "partners": [
+    "stay",
+    "greedy"
+  ],
+  "algos": [
+    "ppo",
+    "grpo"
+  ],
+  "agents": [
+    2
+  ],
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "env_steps": 2000000,
+  "horizon": 400,
+  "anneal_frac": 0.5,
+  "pickup_bonus": 3.0,
+  "eval_episodes": 10,
+  "eval_deterministic": false,
+  "hidden": 128,
+  "gamma": 0.99,
+  "gae_lambda": 0.98,
+  "ppo_rollout_steps": 4000,
+  "ppo_epochs": 8,
+  "ppo_minibatch": 500,
+  "ppo_lr": 0.0003,
+  "clip_eps": 0.2,
+  "vf_coef": 0.5,
+  "ent_coef": 0.01,
+  "max_grad_norm": 0.5,
+  "grpo_group_size": 8,
+  "grpo_epochs": 8,
+  "grpo_minibatch": 500,
+  "grpo_lr": 0.0003,
+  "grpo_advantage": "process",
+  "a2c_rollout_steps": 128,
+  "a2c_lr": 0.0007,
+  "dqn_buffer": 200000,
+  "dqn_batch": 128,
+  "dqn_lr": 0.0001,
+  "dqn_learning_starts": 10000,
+  "dqn_train_every": 4,
+  "dqn_target_every": 2000,
+  "dqn_explore_frac": 0.2,
+  "dqn_eps_end": 0.05,
+  "sac_buffer": 200000,
+  "sac_batch": 128,
+  "sac_lr": 0.0003,
+  "sac_learning_starts": 10000,
+  "sac_train_every": 4,
+  "sac_tau": 0.005,
+  "sac_target_entropy_scale": 0.89,
+  "h1_s_max": 0.1,
+  "h1_frac": 0.5,
+  "h3_gap": 0.2
+}
