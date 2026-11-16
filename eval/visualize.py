@@ -106,7 +106,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--run", default="results/full")
     p.add_argument("--preview", action="store_true", help="scripted greedy cook in the learner seat")
-    p.add_argument("--algo", default="ppo", choices=["ppo", "grpo", "a2c", "dqn", "sac"])
+    p.add_argument("--algo", default="ppo", choices=["ppo", "grpo"])
     p.add_argument("--reward", default="team", choices=["learned", "team", "individual", "pickup"])
     p.add_argument("--partner", default="greedy", choices=["stay", "greedy"])
     p.add_argument("--seed", type=int, default=0, help="training seed of the checkpoint")

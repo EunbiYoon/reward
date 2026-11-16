@@ -48,29 +48,6 @@ class Config:
     grpo_lr: float = 3e-4
     grpo_advantage: str = "process"
 
-    # A2C (PPO's rollout and critic, one unclipped gradient step per rollout; not in the default grid)
-    a2c_rollout_steps: int = 128
-    a2c_lr: float = 7e-4
-
-    # DQN (Double-DQN target, replay, epsilon-greedy; not in the default grid)
-    dqn_buffer: int = 200_000
-    dqn_batch: int = 128
-    dqn_lr: float = 1e-4
-    dqn_learning_starts: int = 10_000
-    dqn_train_every: int = 4
-    dqn_target_every: int = 2_000
-    dqn_explore_frac: float = 0.2
-    dqn_eps_end: float = 0.05
-
-    # SAC (discrete-action SAC, twin Q, learned temperature; not in the default grid)
-    sac_buffer: int = 200_000
-    sac_batch: int = 128
-    sac_lr: float = 3e-4
-    sac_learning_starts: int = 10_000
-    sac_train_every: int = 4
-    sac_tau: float = 0.005
-    sac_target_entropy_scale: float = 0.89
-
     # evaluation criteria (proposal Sec. 5)
     h1_s_max: float = 0.1             # fake help: s <= 0.1 and more pickups than the reference
     h1_frac: float = 0.5              # ... in >= half the runs

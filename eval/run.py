@@ -81,7 +81,7 @@ def rm_score(cfg: Config, traces: list) -> float:
                           for tr in traces]))
 
 
-ALGOS = ("ppo", "grpo", "a2c", "dqn", "sac")
+ALGOS = ("ppo", "grpo")
 
 
 def partner_tag(partner: str) -> str:
@@ -96,8 +96,6 @@ def ckpt_name(algo: str, reward: str, partner: str, seed: int, n_agents: int = 2
 
 
 def train(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_path: str = ""):
-    if cfg.aux_coef > 0 and algo not in ("ppo", "grpo"):
-        raise ValueError(f"--aux-coef (partner-prediction head) is implemented for ppo and grpo, not {algo}")
     if algo == "ppo":
         from train.ppo import PPOConfig, train_ppo
         pc = PPOConfig(env_steps=cfg.env_steps, gamma=cfg.gamma, gae_lambda=cfg.gae_lambda,
@@ -115,26 +113,6 @@ def train(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_p
                             advantage=cfg.grpo_advantage, hidden=cfg.hidden, aux_coef=cfg.aux_coef,
                             resume_path=resume_path)
         return train_grpo_deep(env, gc, seed)
-    if algo == "a2c":
-        from train.a2c import A2CConfig, train_a2c
-        ac = A2CConfig(env_steps=cfg.env_steps, gamma=cfg.gamma, gae_lambda=cfg.gae_lambda,
-                       rollout_steps=cfg.a2c_rollout_steps, lr=cfg.a2c_lr, vf_coef=cfg.vf_coef,
-                       ent_coef=cfg.ent_coef, max_grad_norm=cfg.max_grad_norm, hidden=cfg.hidden)
-        return train_a2c(env, ac, seed)
-    if algo == "dqn":
-        from train.dqn import DQNConfig, train_dqn
-        dc = DQNConfig(env_steps=cfg.env_steps, gamma=cfg.gamma, buffer_size=cfg.dqn_buffer,
-                       batch=cfg.dqn_batch, lr=cfg.dqn_lr, learning_starts=cfg.dqn_learning_starts,
-                       train_every=cfg.dqn_train_every, target_every=cfg.dqn_target_every,
-                       explore_frac=cfg.dqn_explore_frac, eps_end=cfg.dqn_eps_end, hidden=cfg.hidden)
-        return train_dqn(env, dc, seed)
-    if algo == "sac":
-        from train.sac import SACConfig, train_sac
-        sc = SACConfig(env_steps=cfg.env_steps, gamma=cfg.gamma, buffer_size=cfg.sac_buffer,
-                       batch=cfg.sac_batch, lr=cfg.sac_lr, learning_starts=cfg.sac_learning_starts,
-                       train_every=cfg.sac_train_every, tau=cfg.sac_tau,
-                       target_entropy_scale=cfg.sac_target_entropy_scale, hidden=cfg.hidden)
-        return train_sac(env, sc, seed)
     raise ValueError(f"algos are {', '.join(ALGOS)}, got {algo!r}")
 
 

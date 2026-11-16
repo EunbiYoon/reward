@@ -15,7 +15,6 @@ gives it.
 - `ppo.py`, `grpo.py`: the two optimizers used in the paper.
 - `deep_policy.py`: MLP policy, observation normalization, checkpoints.
 - `resume.py`: resumes a run after a cluster job is interrupted.
-- `a2c.py`, `dqn.py`, `sac.py`: extra optimizers, not used in the paper.
 
 ## 3. `rlaif/`: LLM judges
 - `collect.py`: records a pool of episodes from different seat-0 agents (scripted cook, trained thief,
