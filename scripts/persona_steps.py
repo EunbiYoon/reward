@@ -33,14 +33,14 @@ A_PPO, A_GRPO = "results/full/models/ppo_team_greedy_s0.pt", "results/full/model
 # (label, learner checkpoints (averaged) or "greedy", partner)
 PERSONAS = [
     ("Baseline: rule-based cook", ["greedy"], "greedy"),
-    ("Credit theft (PPO)", ["results/full/models/ppo_individual_greedy_s0.pt"], "greedy"),
-    ("Credit theft (GRPO)", ["results/grpo_thief/models/grpo_individual_greedy_s0.pt"], "greedy"),
-    ("Fake help (PPO)", ["results/full/models/ppo_pickup_greedy_s0.pt"], "greedy"),
-    ("Shadowing (PPO)", [f"results/ppo_B4/models/ppo_shadow_ckpt-ppo_team_greedy_s0_s{i}.pt" for i in range(3)],
+    ("Theft (PPO)", ["results/full/models/ppo_individual_greedy_s0.pt"], "greedy"),
+    ("Theft (GRPO)", ["results/grpo_thief/models/grpo_individual_greedy_s0.pt"], "greedy"),
+    ("Pickup (PPO)", ["results/full/models/ppo_pickup_greedy_s0.pt"], "greedy"),
+    ("Shadow (PPO)", [f"results/ppo_B4/models/ppo_shadow_ckpt-ppo_team_greedy_s0_s{i}.pt" for i in range(3)],
      f"ckpt:{A_PPO}"),
-    ("Shadowing (GRPO)", [f"results/grpo_B4/models/grpo_shadow_ckpt-grpo_team_greedy_s0_s{i}.pt" for i in range(3)],
+    ("Shadow (GRPO)", [f"results/grpo_B4/models/grpo_shadow_ckpt-grpo_team_greedy_s0_s{i}.pt" for i in range(3)],
      f"ckpt:{A_GRPO}"),
-    ("Quitting (PPO)", ["results/ppo_quit/models/ppo_individual_ckpt-ppo_team_greedy_s0_s0.pt"], f"ckpt:{A_PPO}"),
+    ("Quit (PPO)", ["results/ppo_quit/models/ppo_individual_ckpt-ppo_team_greedy_s0_s0.pt"], f"ckpt:{A_PPO}"),
 ]
 A_SP = "results/sp_A/models/ppo_team_self_s0.pt"           # self-play partner (scripts: --selfplay)
 SP_B = "results/sp_B/models/ppo_{r}_ckpt-ppo_team_self_s0_s{i}.pt"

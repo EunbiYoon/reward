@@ -2,7 +2,7 @@
 
     python scripts/merge_runs.py results/paper/full5 results/full results/full_s34
 
-Concatenates results.csv, takes reference.csv and config.json from the first folder and sets the
+Concatenates the latest results.csv of each folder, takes reference.csv and config.json from the first folder and sets the
 config's seeds to the union, so `python -m eval.summarize <out>` reads the merged runs.
 """
 import json
@@ -11,19 +11,21 @@ import shutil
 import sys
 
 import pandas as pd
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from eval.paths import has_results, results_path  # noqa: E402
 
 
 def main():
-    out, srcs = sys.argv[1], [s for s in sys.argv[2:] if os.path.exists(os.path.join(s, "results.csv"))]
+    out, srcs = sys.argv[1], [s for s in sys.argv[2:] if has_results(s)]
     if not srcs:
         raise SystemExit("no source folder has results.csv")
     os.makedirs(out, exist_ok=True)
-    df = pd.concat([pd.read_csv(os.path.join(s, "results.csv")) for s in srcs], ignore_index=True)
+    df = pd.concat([pd.read_csv(results_path(s)) for s in srcs], ignore_index=True)
     keys = [c for c in ("env", "algo", "reward", "partner", "agents", "seed", "pickup_bonus", "partner_noise",
                         "aux_coef") if c in df.columns]
     df = df.drop_duplicates(keys, keep="last")
     df.to_csv(os.path.join(out, "results.csv"), index=False)
-    shutil.copy(os.path.join(srcs[0], "reference.csv"), os.path.join(out, "reference.csv"))
+    shutil.copy(results_path(srcs[0], "reference.csv"), os.path.join(out, "reference.csv"))
     cfg = json.load(open(os.path.join(srcs[0], "config.json")))
     cfg["seeds"] = sorted(int(s) for s in df["seed"].unique())
     cfg["merged_from"] = srcs

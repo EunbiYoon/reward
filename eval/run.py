@@ -5,7 +5,7 @@ Checks whether training produced what we wanted. The checkpoints come from train
 Usage (from the project root):
     python -m eval.run results/ppo/A                          # every checkpoint in results/ppo/A/models
     python -m eval.run results/ppo/A results/ppo/A_personas --workers 12
-    python -m eval.run results/ppo/A --only-new               # skip checkpoints already in results.csv
+    python -m eval.run results/ppo/A --only-new               # only checkpoints not in the latest evaluation
     python -m eval.run results/ppo/A --episodes 20            # more evaluation games than config.json says
 
 Each checkpoint carries its own settings (algo, reward, partner, seed, agents, pickup bonus, ...), and
@@ -13,10 +13,14 @@ Each checkpoint carries its own settings (algo, reward, partner, seed, agents, p
 that is needed. Every checkpoint is replayed three ways on the same seeds (eval/coalitions.py): the
 real team, the learner alone (partners frozen) and the partners alone (learner frozen).
 
-Writes to <run>/:
+Writes a new folder <run>/eval/<YYYYmmdd_HHMMSS>/ each time (earlier evaluations are kept; readers use
+the newest, see eval/paths.py):
+    eval_info.json  when, how many games, which checkpoints were measured this time
+    persona_check.md  did training produce the intended persona: soup steps 1-7 per seat and a verdict
     reference.csv   the scripted greedy cook in the learner's seat, per partner (s*, pickups*)
     results.csv     one row per checkpoint: team soups, own soups, Shapley phi and share s, credit gap,
-                    pickups, ..., plus its training columns from train_log.csv
+                    pickups, soup-step counts, intended persona and persona_match (eval/persona.py),
+                    ..., plus its training columns from train_log.csv
 Then:  python -m eval.summarize <run>
 """
 from __future__ import annotations
@@ -31,7 +35,9 @@ from multiprocessing import get_context
 
 from train.run import make_env, partner_tag, read_csv, write_csv
 
-from .coalitions import evaluate_coalitions, policy_actor, torch_reseed
+from .paths import latest, new_eval_dir
+from .coalitions import EVAL_SEED0, evaluate_coalitions, policy_actor, torch_reseed
+from . import persona
 from train.config import Config, load_config
 
 
@@ -116,10 +122,22 @@ def evaluate_checkpoint(args) -> dict:
                               traces=traces if (cfg.reward_model or head is not None) else None)
     met["rm_score"] = rm_score(cfg, traces)        # what the reward model thinks of the trained policy
     met["partner_pred_acc"] = partner_pred_acc(policy, obs_rms, head, traces)
+    met.update(persona_columns(env, actor, reward, partner, n_agents, cfg.eval_episodes))
     env.close()
     return {"seed": seed, "algo": algo, "reward": reward, "partner": partner,
             "pickup_bonus": c.pickup_bonus, "partner_noise": c.partner_noise, "aux_coef": c.aux_coef,
             **met, "checkpoint": os.path.relpath(path, run)}
+
+
+def persona_columns(env, actor, reward: str, partner: str, n_agents: int, episodes: int) -> dict:
+    """Soup-step counts and the intended-persona verdict (eval/persona.py); Kitchen with 2 agents only."""
+    from train.resume import base_env
+    from environment.kitchen import Kitchen
+    core = base_env(env)
+    if not isinstance(core, Kitchen) or n_agents != 2:
+        return {}
+    m = persona.measure(core, actor, partner, episodes, EVAL_SEED0, torch_reseed)
+    return persona.columns(persona.intended(reward, partner), m)
 
 
 TRAIN_KEYS = ("env_steps_used", "updates", "episodes", "grpo_skipped_groups", "train_proxy_return_last5",
@@ -128,7 +146,7 @@ TRAIN_KEYS = ("env_steps_used", "updates", "episodes", "grpo_skipped_groups", "t
 
 def training_info(run: str) -> dict:
     """checkpoint file name -> its training columns, from train_log.csv or, for folders made before the
-    train/eval split, from the old results.csv. Read once, before results.csv is rewritten."""
+    train/eval split, from the old <run>/results.csv."""
     info = {os.path.basename(r.get("checkpoint", "")): r for r in read_csv(os.path.join(run, "results.csv"))}
     info.update({os.path.basename(r.get("checkpoint", "")): r for r in read_csv(os.path.join(run, "train_log.csv"))})
     return {name: {k: r[k] for k in TRAIN_KEYS if r.get(k) not in (None, "")} for name, r in info.items()}
@@ -152,42 +170,48 @@ def run_settings(run: str, episodes: int | None) -> Config:
 
 
 def evaluate_run(run: str, workers: int = 1, names: list | None = None, only_new: bool = False,
-                 episodes: int | None = None):
-    """Measure the checkpoints of one run folder (all, or only `names`) and rewrite its results.csv."""
+                 episodes: int | None = None) -> str | None:
+    """Measure the checkpoints of one run folder (all, or only `names`) into a new <run>/eval/<time>/.
+    Checkpoints not measured this time are carried over from the latest evaluation, so the newest
+    folder always holds every checkpoint. Returns that folder (None if there was nothing to do)."""
     cfg = run_settings(run, episodes)
     paths = checkpoints(run)
     if not paths:
         raise SystemExit(f"no checkpoints in {run}/models")
-    old = read_csv(os.path.join(run, "results.csv"))
+    prev = latest(run)                                   # the latest evaluation (or the old layout)
+    old = read_csv(os.path.join(prev, "results.csv"))
     done = {os.path.basename(r.get("checkpoint", "")) for r in old}
     if names is not None:
         paths = [p for p in paths if os.path.basename(p) in set(names)]
     if only_new:
         paths = [p for p in paths if os.path.basename(p) not in done]
     if not paths:
-        print(f"{run}: nothing to evaluate")
-        return
+        print(f"{run}: nothing to evaluate (latest evaluation: {prev})")
+        return None
 
+    info = training_info(run)                            # before anything is written
+    out = new_eval_dir(run)
     metas = [checkpoint_meta(p) for p in paths]
     partners = list(dict.fromkeys(m["partner"] for m in metas))
     agents = sorted({m.get("agents", 2) for m in metas})
-    print(f"{run}: {len(paths)} checkpoints, {cfg.eval_episodes} evaluation games each, {workers} workers")
-    ref_path = os.path.join(run, "reference.csv")
+    print(f"{run}: {len(paths)} checkpoints, {cfg.eval_episodes} evaluation games each, {workers} workers -> {out}")
+    write_info(out, cfg, paths, prev if old else None)
     ref_new = reference(cfg, partners, agents)
-    ref_keep = [r for r in read_csv(ref_path) if r.get("partner") not in set(partners)]   # other partners' rows
-    write_csv(ref_path, ref_keep + ref_new)
+    ref_keep = [r for r in read_csv(os.path.join(prev, "reference.csv")) if r.get("partner") not in set(partners)]
+    write_csv(os.path.join(out, "reference.csv"), ref_keep + ref_new)
 
-    info = training_info(run)
     evaluated = {os.path.basename(p) for p in paths}
     keep = [r for r in old if os.path.basename(r.get("checkpoint", "")) not in evaluated]
     rows, t0 = [], time.time()
 
     def report(i, row):
         rows.append(row)
-        write_csv(os.path.join(run, "results.csv"), keep + with_training(info, rows))
+        write_csv(os.path.join(out, "results.csv"), keep + with_training(info, rows))
         print(f"  [{i}/{len(paths)}] seed={row['seed']} {row['algo']:>4} {row['reward']:<10} "
               f"partner={partner_tag(row['partner']):<6} team={row['soups']:.2f} own={row['own_soups']:.2f} "
-              f"s={row['s']:+.2f} gap={row['credit_gap']:+.2f} pickups={row['pickups']:.1f}", flush=True)
+              f"s={row['s']:+.2f} gap={row['credit_gap']:+.2f}"
+              + (f"  persona {row['intended'] or '?'}: {row['persona_match']}" if "intended" in row else ""),
+              flush=True)
 
     jobs = [(run, cfg, p) for p in paths]
     if workers > 1 and len(jobs) > 1:
@@ -198,19 +222,39 @@ def evaluate_run(run: str, workers: int = 1, names: list | None = None, only_new
     else:
         for i, job in enumerate(jobs, 1):
             report(i, evaluate_checkpoint(job))
-    print(f"evaluated in {time.time() - t0:.0f}s -> {os.path.join(run, 'results.csv')}. "
+    write_persona_log(out, keep + rows)
+    print(f"evaluated in {time.time() - t0:.0f}s -> {os.path.join(out, 'results.csv')}, "
+          f"{os.path.join(out, 'persona_check.md')}. "
           f"Next:  python -m eval.summarize {run}")
+    return out
+
+
+def write_persona_log(out: str, rows: list[dict]):
+    if any(r.get("persona_match") not in (None, "") for r in rows):
+        with open(os.path.join(out, "persona_check.md"), "w") as f:
+            f.write(persona.log(rows))
+
+
+def write_info(out: str, cfg: Config, paths: list, carried_from: str | None):
+    """eval_info.json: when and how this evaluation was made."""
+    with open(os.path.join(out, "eval_info.json"), "w") as f:
+        json.dump({"time": time.strftime("%Y-%m-%d %H:%M:%S"), "eval_episodes": cfg.eval_episodes,
+                   "eval_deterministic": cfg.eval_deterministic,
+                   "evaluated": [os.path.basename(p) for p in paths],
+                   "carried_over_from": carried_from}, f, indent=2)
 
 
 def evaluate_part(run: str, name: str):
     """Slurm-array mode (train.run --job-index ... --eval): measure one checkpoint into parts/, then rebuild
-    results.csv from every measured part, so concurrent array tasks never overwrite each other."""
+    <run>/eval/slurm_<array job id>/results.csv from every measured part, so concurrent array tasks never
+    overwrite each other."""
     cfg = run_settings(run, None)
+    out = new_eval_dir(run, "slurm_" + os.environ.get("SLURM_ARRAY_JOB_ID", "local"))
     parts = os.path.join(run, "parts")
     part = os.path.join(parts, name[:-3] + ".eval.json")
-    if not os.path.exists(os.path.join(run, "reference.csv")):
+    if not os.path.exists(os.path.join(out, "reference.csv")):
         m = checkpoint_meta(os.path.join(run, "models", name))
-        write_csv(os.path.join(run, "reference.csv"), reference(cfg, list(cfg.partners), [m.get("agents", 2)]))
+        write_csv(os.path.join(out, "reference.csv"), reference(cfg, list(cfg.partners), [m.get("agents", 2)]))
     if not os.path.exists(part):
         row = evaluate_checkpoint((run, cfg, os.path.join(run, "models", name)))
         with open(part + ".tmp", "w") as f:
@@ -222,14 +266,15 @@ def evaluate_part(run: str, name: str):
         if fn.endswith(".eval.json"):
             with open(os.path.join(parts, fn)) as f:
                 rows.append(json.load(f))
-    write_csv(os.path.join(run, "results.csv"), with_training(training_info(run), rows))
+    write_csv(os.path.join(out, "results.csv"), with_training(training_info(run), rows))
+    write_persona_log(out, rows)
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("runs", nargs="+", help="run folders made by python -m train.run (each has config.json and models/)")
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
-    p.add_argument("--only-new", action="store_true", help="skip checkpoints already in results.csv")
+    p.add_argument("--only-new", action="store_true", help="only checkpoints missing from the latest evaluation (the rest are carried over)")
     p.add_argument("--episodes", type=int, help="evaluation games per checkpoint (default: config.json, 10)")
     a = p.parse_args()
     for run in a.runs:

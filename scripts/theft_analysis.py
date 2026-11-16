@@ -1,7 +1,7 @@
-"""How each LLM judge credits the credit thief, per judge file in a judge run.
+"""How each LLM judge credits the theft persona, per judge file in a judge run.
 
     venv/bin/python scripts/theft_analysis.py [results/rlaif/theft]
-    venv/bin/python scripts/theft_analysis.py results/rlaif/teamwork   # A (thief) partner + B (cook) in seat 0
+    venv/bin/python scripts/theft_analysis.py results/rlaif/teamwork   # A (theft) partner + B (cook) in seat 0
 
 For every judgments_<judge>.jsonl (shapley oracle skipped) and every seat-0 behaviour:
   judge credit   mean credit share the judge gives agent 0
@@ -23,14 +23,14 @@ pool = {}
 for line in open(os.path.join(run, "pool", "meta.jsonl")):
     r = json.loads(line)
     pool[r["id"]] = r
-NAMES = {"greedy": "scripted cook", "fidget": "blocker", "ckpt:ppo_individual_greedy_s0": "THIEF",
-         "ckpt:grpo_team_greedy_s0": "spectator", "ckpt:ppo_pickup_greedy_s0": "fake help"}
+NAMES = {"greedy": "scripted cook", "fidget": "blocker", "ckpt:ppo_individual_greedy_s0": "THEFT",
+         "ckpt:grpo_team_greedy_s0": "spectator", "ckpt:ppo_pickup_greedy_s0": "pickup"}
 
 
 def label(beh: str) -> str:
     if beh in NAMES:
         return NAMES[beh]
-    if beh.startswith("ckpt:ppo_team_ckpt:"):                 # B: trained next to the thief partner
+    if beh.startswith("ckpt:ppo_team_ckpt:"):                 # B: trained next to the theft partner
         return "B cook " + beh.rsplit("_", 1)[-1]
     return beh[:14]
 

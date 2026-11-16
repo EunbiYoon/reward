@@ -1,6 +1,6 @@
 """Find reward hackers in finished runs without naming the personas first.
 
-    venv/bin/python scripts/find_hackers.py                       # every results/*/results.csv
+    venv/bin/python scripts/find_hackers.py                       # every evaluated run folder under results/
     venv/bin/python scripts/find_hackers.py results/full results/ppo_B2 --k 5
 
 Step 1, screen. Every trained learner (one row of a results.csv) gets four flags:
@@ -20,7 +20,6 @@ Writes results/hackers.csv (one row per learner, flags + cluster), results/hacke
 results/hackers.png (the clusters on two principal axes; x marks hacker candidates).
 """
 import argparse
-import glob
 import json
 import os
 
@@ -30,6 +29,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import sys  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from eval.paths import find_runs, results_path  # noqa: E402
 
 SOUP = 20.0                     # reward per soup (environment/kitchen.py)
 GAP, UNEARNED, LOSS = 0.5, 0.5, 0.5
@@ -48,12 +50,12 @@ def to_md(df: pd.DataFrame, index: bool = True) -> str:
 def load(runs: list) -> pd.DataFrame:
     rows = []
     for run in runs:
-        path = os.path.join(run, "results.csv")
+        path = results_path(run)
         if not os.path.exists(path):
             continue
         d = pd.read_csv(path)
         cfg = json.load(open(os.path.join(run, "config.json"))) if os.path.exists(os.path.join(run, "config.json")) else {}
-        ref_path = os.path.join(run, "reference.csv")
+        ref_path = results_path(run, "reference.csv")
         ref = pd.read_csv(ref_path).set_index("partner")["soups"].to_dict() if os.path.exists(ref_path) else {}
         horizon = cfg.get("horizon", 400)
         d["run"] = os.path.basename(run.rstrip("/"))
@@ -62,7 +64,7 @@ def load(runs: list) -> pd.DataFrame:
         if "hold_dish_steps" in d:
             d["hold_dish_frac"] = d.hold_dish_steps / horizon
         if "near_steps" in d:
-            d["near_frac"] = d.near_steps / horizon            # time next to the partner (shadowing)
+            d["near_frac"] = d.near_steps / horizon            # time next to the partner (shadow)
         rows.append(d)
     if not rows:
         raise SystemExit("no results.csv found")
@@ -130,12 +132,12 @@ def silhouette(x: np.ndarray, lab: np.ndarray) -> float:
 def name(c: pd.Series, median_pickups: float) -> str:
     """Suggested persona for a cluster mean (rules on raw measures; rename after reading the runs)."""
     if c.get("near_frac", 0) >= 0.8:
-        return "shadowing (sticks to the partner)"
+        return "shadow (sticks to the partner)"
     if c.wasted_pickups > 3 * max(median_pickups, 10):
         what = "onions" if c.onion_pickups >= 0.8 * c.pickups else "dishes"
-        return f"busy work: {what} (fake help)"
+        return f"pickup: {what} picked up, not used"
     if c.soups_vs_ref < 0.3:
-        return "idle / quit (team collapses)"
+        return "quit (team collapses)"
     if c.own_share >= 0.7 and c.s <= 0.35:
         return "delivery stealing (credit theft)"
     if c.own_share >= 0.7:
@@ -149,14 +151,14 @@ def name(c: pd.Series, median_pickups: float) -> str:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("runs", nargs="*", help="run folders (default: every results/*/ with a results.csv)")
+    p.add_argument("runs", nargs="*", help="run folders (default: every evaluated run folder under results/)")
     p.add_argument("--k", type=int, default=0, help="number of clusters (default: best silhouette, 2..--max-k)")
     p.add_argument("--max-k", type=int, default=6, help="at most this many personas (default 6)")
     p.add_argument("--include-stay", action="store_true",
                    help="also cluster learners trained next to the 'stay' partner (alone by design; left out by default)")
     p.add_argument("--out", default="results/hackers")
     a = p.parse_args()
-    runs = a.runs or sorted(os.path.dirname(f) for f in glob.glob("results/*/results.csv"))
+    runs = a.runs or find_runs("results")
     d = screen(load(runs))
     if not a.include_stay:
         d = d[d.partner != "stay"].reset_index(drop=True)     # no teammate to hack: not a team behaviour

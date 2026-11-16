@@ -60,8 +60,6 @@ cpu
 wait "$JPID"
 
 say "final reports"
-DIRS=$(for d in paper/full5 lbf_full rware_full paper/cf5 h7_bonus h8_noise; do
-       [ -f "results/$d/results.csv" ] && echo "results/$d"; done)
 "$PY" -m rlaif.audit --run "$THEFT" > /dev/null 2>&1
 "$PY" scripts/paper_figures.py > logs/paper_figures.log 2>&1 && say "figures -> docs/paper/figures/" \
     || say "figures FAILED (see logs/paper_figures.log)"
