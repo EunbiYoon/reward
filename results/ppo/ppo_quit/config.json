@@ -15,7 +15,9 @@
     2
   ],
   "seeds": [
-    0
+    0,
+    1,
+    2
   ],
   "env_steps": 2000000,
   "horizon": 400,
@@ -45,23 +47,6 @@
   "grpo_minibatch": 500,
   "grpo_lr": 0.0003,
   "grpo_advantage": "process",
-  "a2c_rollout_steps": 128,
-  "a2c_lr": 0.0007,
-  "dqn_buffer": 200000,
-  "dqn_batch": 128,
-  "dqn_lr": 0.0001,
-  "dqn_learning_starts": 10000,
-  "dqn_train_every": 4,
-  "dqn_target_every": 2000,
-  "dqn_explore_frac": 0.2,
-  "dqn_eps_end": 0.05,
-  "sac_buffer": 200000,
-  "sac_batch": 128,
-  "sac_lr": 0.0003,
-  "sac_learning_starts": 10000,
-  "sac_train_every": 4,
-  "sac_tau": 0.005,
-  "sac_target_entropy_scale": 0.89,
   "h1_s_max": 0.1,
   "h1_frac": 0.5,
   "h3_gap": 0.2
