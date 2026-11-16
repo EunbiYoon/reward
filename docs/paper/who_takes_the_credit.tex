@@ -152,8 +152,9 @@ MEP \cite{zhao2023mep} 등은 실력과 행동이 다양한 pool을 만든다. �
 
 \textbf{학습.} 정책과 가치 함수는 각각 은닉층 128의 MLP이고, 관측은 Overcooked-AI의 lossless 상태 인코딩을
 펼친 520차원 벡터이다. 알고리즘은 PPO \cite{schulman2017ppo}와 GRPO \cite{shao2024deepseekmath}이며, 각
-조합을 2M 환경 step 동안 seed 0--2로 학습한다. PPO는 4000 step rollout, 8 epoch, minibatch 500, 학습률
-$3\times10^{-4}$, $\gamma=0.99$, GAE $\lambda=0.98$, entropy 0.01을 쓴다. \TODO{GRPO 하이퍼파라미터, 부록 표}
+조합을 2M 환경 step 동안 seed 0--2로 학습한다. GRPO는 critic 없이 같은 시작 상태에서 돈 에피소드 8개를
+한 그룹으로 묶어 advantage를 계산한다. 두 알고리즘은 학습률, epoch, minibatch, clip을 같게 맞췄으며, 전체
+하이퍼파라미터는 부록 표~\ref{tab:hparams}에 있다.
 
 % ------------------------------------------------------------------------------------- Persona pipeline
 \subsection{페르소나 만들기}
@@ -364,5 +365,65 @@ $r=0.94$로 맞고(두 판정자 모두), Shapley 몫과는 $r=0.27$--$0.33$으�
 판정자를 시험하는 도구가 된다.
 
 \bibliography{references}
+
+% ===================================================================================== Appendix
+\appendix
+\section{Hyperparameters}
+표~\ref{tab:hparams}는 모든 학습에 쓴 설정이다. 값은 \texttt{train/config.py}의 기본값이며, 각 결과 폴더의
+\texttt{config.json}에 그대로 기록된다. 보상과 동료만 바뀌고 나머지는 모든 학습에서 같다.
+
+\textbf{공통.} 정책은 $520 \rightarrow 128 \rightarrow 128 \rightarrow 6$ MLP(tanh)이고, 6개 행동(이동 4,
+가만히, 상호작용)에 대한 categorical 분포를 낸다. 관측은 running mean/std로 정규화한다. 최적화는 Adam이다.
+에피소드는 400 step에서 끊기므로, PPO는 마지막 보상을 $\gamma V(s_T)$로 bootstrap한다.
+
+\textbf{PPO.} 4000 step(에피소드 10개)을 모은 뒤 GAE로 advantage를 계산하고, minibatch마다 정규화한다. 가치 함수는
+정책과 별도의 MLP이다.
+
+\textbf{GRPO.} 한 번의 업데이트마다 같은 reset seed에서 에피소드 8개를 현재 정책으로 돌린다. 그룹 전체의 step
+보상을 평균과 표준편차로 정규화한 뒤, 각 step의 advantage를 그 뒤 정규화 보상의 할인 합으로 둔다
+(\emph{process supervision}, \citealt{shao2024deepseekmath}). 이후 advantage를 표준편차 1로 맞추고, clip된
+surrogate를 KL 항 없이 최적화한다. reset seed는 업데이트마다 바뀐다.
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & PPO & GRPO \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{환경과 보상}} \\
+맵 & \multicolumn{2}{c}{\texttt{cramped\_room}} \\
+에피소드 길이 & \multicolumn{2}{c}{400 step} \\
+수프 하나 & \multicolumn{2}{c}{+20 (team 보상)} \\
+줍기 보너스 (pickup) & \multicolumn{2}{c}{줍기마다 +3, 줄이지 않음} \\
+근접 보너스 (proximity) & \multicolumn{2}{c}{동료 옆 step마다 +1, 줄이지 않음} \\
+공식 shaping (team, individual) & \multicolumn{2}{c}{1M step까지 1 $\rightarrow$ 0 선형} \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{학습}} \\
+환경 step / 학습 & \multicolumn{2}{c}{$2\times10^6$} \\
+seed & \multicolumn{2}{c}{0, 1, 2} \\
+은닉층 & \multicolumn{2}{c}{2 $\times$ 128, tanh} \\
+최적화 & \multicolumn{2}{c}{Adam} \\
+학습률 & \multicolumn{2}{c}{$3\times10^{-4}$} \\
+할인율 $\gamma$ & \multicolumn{2}{c}{0.99} \\
+clip $\epsilon$ & \multicolumn{2}{c}{0.2} \\
+gradient norm clip & \multicolumn{2}{c}{0.5} \\
+epoch / 업데이트 & \multicolumn{2}{c}{8} \\
+minibatch & \multicolumn{2}{c}{500} \\
+업데이트당 데이터 & 4000 step & 8 에피소드 (3200 step) \\
+advantage & GAE, $\lambda=0.98$ & 그룹 정규화 (process) \\
+가치 함수 & MLP, 계수 0.5 & 없음 \\
+entropy 계수 & 0.01 & 0 \\
+KL 항 & -- & 없음 \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{평가}} \\
+평가 게임 & \multicolumn{2}{c}{10개, seed $10^4+k$} \\
+행동 선택 & \multicolumn{2}{c}{정책에서 샘플링} \\
+\bottomrule
+\end{tabular}
+\caption{하이퍼파라미터. PPO와 GRPO는 학습률, epoch, minibatch, clip을 같게 맞췄다.}
+\label{tab:hparams}
+\end{table}
 
 \end{document}

@@ -1,0 +1,4 @@
+seed,algo,reward,partner,agents,pickup_bonus,partner_noise,aux_coef,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint
+1,ppo,pickup,greedy,2,3.0,,0.0,2000000,500,5000,712.4,1535.1,models\ppo_pickup_greedy_s1.pt
+0,ppo,pickup,greedy,2,3.0,,0.0,2000000,500,5000,733.4,1543.7,models\ppo_pickup_greedy_s0.pt
+2,ppo,pickup,greedy,2,3.0,,0.0,2000000,500,5000,687.4,1476.8,models\ppo_pickup_greedy_s2.pt
