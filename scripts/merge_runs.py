@@ -1,4 +1,4 @@
-"""Merge several eval.run output folders of the same grid (e.g. extra seeds) into one folder.
+"""Merge several run folders (train.run + eval.run) of the same grid (e.g. extra seeds) into one folder.
 
     python scripts/merge_runs.py results/paper/full5 results/full results/full_s34
 

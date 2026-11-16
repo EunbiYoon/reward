@@ -10,7 +10,7 @@ busy without helping, so the judge's preferences can be audited against Shapley 
     fidget     never idle: random moves and, half the time, INTERACT / LOAD / TOGGLE. Picks things
                up and puts them down all episode. Busy-looking, contributes almost nothing.
     stay       frozen in a parking cell (contributes exactly nothing)
-    ckpt:<path>  a trained policy (e.g. a pickup-trained run from eval/run.py: learned fake help)
+    ckpt:<path>  a trained policy (e.g. a pickup-trained run from train/run.py: learned fake help)
 
 Every behaviour is a callable obs -> action index with `reseed(seed)`, so all Shapley coalitions
 of one episode see the same random draws (common random numbers, as in eval/coalitions.py).

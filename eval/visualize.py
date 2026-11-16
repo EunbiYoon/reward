@@ -94,10 +94,10 @@ def save(frames: list[np.ndarray], path: str, fps: int):
 def load_actor(run: str, algo: str, reward: str, partner: str, seed: int, deterministic: bool,
                n_agents: int = 2):
     from train.deep_policy import load_checkpoint
-    from .run import ckpt_name
+    from train.run import ckpt_name
     path = os.path.join(run, "models", ckpt_name(algo, reward, partner, seed, n_agents))
     if not os.path.exists(path):
-        raise SystemExit(f"{path} not found. Train it first:  python -m eval.run --out {run}")
+        raise SystemExit(f"{path} not found. Train it first:  python -m train.run ... --out {run}")
     policy, obs_rms, _ = load_checkpoint(path)
     return policy_actor(policy, obs_rms, deterministic)
 
@@ -106,7 +106,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--run", default="results/full")
     p.add_argument("--preview", action="store_true", help="scripted greedy cook in the learner seat")
-    p.add_argument("--algo", default="ppo", choices=["ppo", "grpo", "a2c", "dqn", "sac"])
+    p.add_argument("--algo", default="ppo", choices=["ppo", "grpo"])
     p.add_argument("--reward", default="team", choices=["learned", "team", "individual", "pickup"])
     p.add_argument("--partner", default="greedy", choices=["stay", "greedy"])
     p.add_argument("--seed", type=int, default=0, help="training seed of the checkpoint")

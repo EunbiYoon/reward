@@ -16,13 +16,13 @@ mkdir -p logs
 DEPS=()          # job ids the finishing job waits for
 NAMES=()
 
-array() {        # array <name> <mem> [--dependency=...] -- <eval.run grid args...>
+array() {        # array <name> <mem> [--dependency=...] -- <train.run grid args...>
     local name=$1 mem=$2; shift 2
     local dep=()
     if [ "$1" != "--" ]; then dep=("$1"); shift; fi
     shift        # the --
     local n
-    n=$(python -m eval.run "$@" --out "results/$name" --list-jobs | tail -n 1)
+    n=$(python -m train.run "$@" --out "results/$name" --list-jobs | tail -n 1)
     local id
     id=$(sbatch --parsable --job-name="$name" --mem="$mem" --array=0-$((n - 1)) ${dep[@]+"${dep[@]}"} \
          scripts/cluster/run_task.sh "$name" "$@")

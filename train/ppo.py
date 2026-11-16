@@ -209,5 +209,5 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
     log = {"env_steps_used": steps, "updates": updates, "episodes": len(ep_returns),
            "train_proxy_return_last5": float(np.mean(ep_returns[-5:])) if ep_returns else float("nan")}
     if head is not None:
-        log["_partner_head"] = head       # popped by eval/run.py (held-out prediction accuracy)
+        log["_partner_head"] = head       # popped by train/run.py (saved next to the checkpoint)
     return policy, obs_rms, log

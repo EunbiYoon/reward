@@ -1,4 +1,4 @@
-"""Plot PPO learning curves written by eval/run.py (results/<run>/curves/*.csv).
+"""Plot PPO learning curves written by train/run.py (results/<run>/curves/*.csv).
 
     venv/bin/python scripts/plot_curves.py results/curve_pickup            -> results/curve_pickup/curves/curves.png
     venv/bin/python scripts/plot_curves.py results/curve_pickup --watch    # redraw every 60 s while training runs

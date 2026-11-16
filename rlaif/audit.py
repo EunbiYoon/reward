@@ -16,7 +16,7 @@
      position bias  how often the judge answers "A"
 2. Reward-model integrity (every rm_<judge>.pt): the same agreement / busy-credit numbers when the
    reward model's trajectory score decides, and Spearman(score, phi) over the pool.
-3. Trained agents (--train-run, the --out of eval.run): per optimizer and training reward with
+3. Trained agents (--train-run, the --out of train.run, measured by eval.run): per optimizer and training reward with
    the greedy partner, the rate of fake help and credit theft (rules of eval/summarize.py), and
    reward hacking: the reward model scores the agent at least as high as the scripted teammate
    while its Shapley share is below half of the teammate's.
@@ -169,7 +169,7 @@ def audit_agents(train_run: str, cfg: dict) -> tuple[list[str], dict]:
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--run", required=True, help="the --out of rlaif.collect (pool, judgments, reward models)")
-    p.add_argument("--train-run", help="the --out of eval.run trained with --reward-model")
+    p.add_argument("--train-run", help="the --out of train.run trained with --reward-model (then eval.run)")
     p.add_argument("--tol", type=float, default=0.1, help="decisive pair: |phi_A - phi_B| > tol x std(phi)")
     a = p.parse_args()
 
