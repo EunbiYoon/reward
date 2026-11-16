@@ -18,13 +18,22 @@ Mac (PPO)
 - [O] 학습 끝남 (`results/ppo/A`): seed 0–2 모두 팀 수프 11.0개를 전부 직접 배달, `s`=0.18. 예전 PPO-A와 같다(배달 독점형).
 
 Windows (GRPO)
-- [ ] 학습: `.\venv\Scripts\python -m train.run --algos grpo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/A --workers 3`
-- [ ] 확인: `.\venv\Scripts\python -m eval.run results/grpo/A --workers 3`
-      `results/grpo/A/results.csv`에서 seed 0의 팀 수프. 예전 GRPO-A는 8.3개(greedy가 전부 만듦, 학습자 배달 0).
+- [O] `.\venv\Scripts\python -m eval.run --algos grpo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/A --workers 3`
 
-동료로 쓸 체크포인트 (seed 0):
-- PPO-A: `results/ppo/A/models/ppo_team_greedy_s0.pt`
-- GRPO-A: `results/grpo/A/models/grpo_team_greedy_s0.pt`
+결과 확인 (2단계 B 전에 꼭):
+- [ ] `results/<algo>/A/results.csv`에서 seed 0의 팀 수프(soups)가 0에 가깝지 않은지. 예전 PPO-A는 11.0개(전부 직접 배달),
+      GRPO-A는 8.3개(greedy가 전부 만듦). 요리를 못 배웠으면 B를 돌려도 의미가 없다.
+- 동료로 쓸 체크포인트: `results/ppo/A/models/ppo_team_greedy_s0.pt`, `results/grpo/A/models/grpo_team_greedy_s0.pt`
+
+## 2단계 A. greedy 옆 페르소나 (A가 필요 없어서 1단계와 동시에 돌려도 됨)
+
+individual = 배달 뺏기, pickup = 바쁜 척, shadow = 그림자. (team은 1단계 A와 같은 조건이라 뺐다.)
+
+Mac (PPO)
+- [ ] `venv/bin/python -m eval.run --algos ppo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/ppo/greedy_personas --workers 9`
+
+Windows (GRPO)
+- [ ] `.\venv\Scripts\python -m eval.run --algos grpo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/greedy_personas --workers 9`
 
 ## 2단계 B. A 옆 페르소나 (1단계 A를 확인한 뒤)
 

@@ -19,6 +19,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from .ppo import CURVE_KEYS, curve_row, write_curve
 from .resume import Resumer, base_env
 from .deep_policy import RunningMeanStd, make_partner_head, make_policy, partner_label, to_env_action
 
@@ -38,6 +39,7 @@ class GRPODeepConfig:
     aux_coef: float = 0.0     # > 0: auxiliary partner-action prediction on the policy trunk (H12)
     resume_path: str = ""     # mid-training checkpoint (train/resume.py); "" = none
     save_every_s: float = 300.0
+    curve_path: str = ""      # CSV learning curve, one row per group ("" = none); see scripts/plot_curves.py
 
 
 def _advantages(rewards: list[np.ndarray], gamma: float, mode: str) -> list[np.ndarray] | None:
@@ -93,9 +95,11 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
     while steps < cfg.env_steps:
         reset_seed = seed * 100_000 + updates
         O, A, LP, P1, rewards = [], [], [], [], []
+        done_eps = []                                 # per-episode totals, for the learning curve
         for _ in range(cfg.group_size):
             obs = env.reset(reset_seed)
             o_ep, a_ep, lp_ep, r_ep = [], [], [], []
+            ep_tot = {k: 0.0 for k in CURVE_KEYS}
             done = False
             while not done:
                 obs_rms.update(obs[None])
@@ -105,13 +109,18 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
                 a = to_env_action(a)
                 obs, info, done = env.step(a)
                 o_ep.append(o); a_ep.append(a); lp_ep.append(lp.item()); r_ep.append(info["proxy"])
+                for k in CURVE_KEYS:
+                    ep_tot[k] += float(info.get(k, 0.0))
                 if head is not None:
                     P1.append(partner_label(info))
             steps += len(r_ep)
             O += o_ep; A += a_ep; LP += lp_ep
             rewards.append(np.asarray(r_ep, np.float32))
+            done_eps.append({"proxy_return": float(np.sum(r_ep)), **ep_tot, "length": len(r_ep)})
         updates += 1
         group_means.append(float(np.mean([r.sum() for r in rewards])))
+        if cfg.curve_path:
+            write_curve(cfg.curve_path, curve_row(done_eps, updates, steps, env))
 
         advs = _advantages(rewards, cfg.gamma, cfg.advantage)
         if advs is None:
