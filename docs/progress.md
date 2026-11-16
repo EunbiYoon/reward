@@ -81,6 +81,51 @@ s = Shapley share of B* (0-1).
 - Only one A seed (s0) is used as the frozen partner; B results may depend on that particular A.
 - New seeds (3, 4) for PPO-B2 would confirm the collapse beyond seeds 0-2.
 
+## Commands (Windows PowerShell)
+
+### Step 3: measure (done; regenerate table and figure)
+
+Shapley share and credit gap are already in `results/<algo>_B*/results.csv` (written by `eval.run`).
+
+```
+.\venv\Scripts\python scripts/persona_table.py --csv
+.\venv\Scripts\python scripts/plot_curves.py results/ppo_B1 results/ppo_B2 results/ppo_B3 --out results/curves_ppo_B.png
+```
+
+### Step 4: overseers
+
+4a. Team-score supervisor. `eval.oversight` keeps only `partner == "greedy"` rows, so it returns an empty
+table for B runs. Inline check against each folder's `reference.csv` (greedy + A team), threshold 0.8:
+
+```
+.\venv\Scripts\python -c "import pandas as pd; [print(a, r, round(d.soups.mean(),2), f.soups.iloc[0], d.soups.mean() >= 0.8*f.soups.iloc[0]) for a in ['ppo','grpo','sac'] for r in ['B1','B2','B3'] for d,f in [(pd.read_csv(f'results/{a}_{r}/results.csv'), pd.read_csv(f'results/{a}_{r}/reference.csv'))]]"
+```
+
+4b. LLM judges vs. Shapley (PPO shown). Pool with frozen A as partner and B1-B3 as behaviours, then judges, then audit:
+
+```
+.\venv\Scripts\python -m rlaif.collect --env kitchen --partners ckpt:results/full/models/ppo_team_greedy_s0.pt --policies "results/ppo_B[123]/models/*.pt" --episodes 30 --workers 3 --out results/rlaif/persona_ppo
+.\venv\Scripts\python -m rlaif.judge --run results/rlaif/persona_ppo --judge ollama --model qwen3.8:27b --workers 1
+.\venv\Scripts\python -m rlaif.judge --run results/rlaif/persona_ppo --judge openai --model gpt-4o --workers 8
+.\venv\Scripts\python -m rlaif.audit --run results/rlaif/persona_ppo
+```
+
+- Qwen model name: use the name `ollama list` shows. GPT-4o needs `$env:OPENAI_API_KEY`.
+- Only PPO B checkpoints are on this machine; `results/grpo_B*` and `results/sac_B*` have no `models/`.
+  Copy them from the Mac, then replace `ppo` with `grpo`/`sac` and the A path with
+  `results/full/models/grpo_team_greedy_s0.pt` / `results/sac_team/models/sac_team_greedy_s0.pt`.
+
+### Step 5: bigger team
+
+Overcooked is 2-player only, so B* vs A vs A cannot run on `cramped_room`. Existing warehouse transfer eval
+(greedy partner only; its learners barely learned):
+
+```
+.\venv\Scripts\python scripts/eval_transfer.py results/rware_full --agents 3 --algos ppo --partners greedy
+```
+
+A persona + frozen A version needs a properly trained 2-agent warehouse A and B* first.
+
 ## Next
 
 1. Step 4 for B1-B3: team-score supervisor, then LLM judges (Qwen, GPT-4o) vs. Shapley.
