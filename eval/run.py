@@ -310,7 +310,9 @@ def run_one(cfg: Config, out: str, index: int):
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--quick", action="store_true", help="1 seed, 200k steps, 3 eval episodes")
-    p.add_argument("--out", default="results/run")
+    p.add_argument("--out", default="run",
+                   help="a bare name (no '/') is saved per algorithm as results/<algo>/<name>; a path is used as is. "
+                        "Runs added to an existing folder are merged into its results.csv (same run = replaced)")
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     p.add_argument("--seeds", type=int, nargs="+")
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
@@ -348,8 +350,48 @@ def parse_args():
     return cfg, a.out, a.workers, a.list_jobs, a.job_index
 
 
+def previous_rows(out: str, jobs: list) -> list[dict]:
+    """Rows already in <out>/results.csv that this grid does not rerun (so extra seeds can be added later)."""
+    path = os.path.join(out, "results.csv")
+    if not os.path.exists(path):
+        return []
+    with open(path, newline="") as f:
+        old = list(csv.DictReader(f))
+    # a checkpoint partner is matched by its file name, so a moved results folder still counts as the same partner
+    tag = {partner_tag(pt): pt for *_, pt, n, c, _o in jobs}
+    for r in old:
+        r["partner"] = tag.get(partner_tag(r.get("partner", "")), r.get("partner"))
+    new = {(str(s), a, r, pt, str(n)) for s, a, r, pt, n, c, _ in jobs}
+    keep = [r for r in old if (r.get("seed"), r.get("algo"), r.get("reward"), r.get("partner"), r.get("agents")) not in new]
+    if keep:
+        print(f"keeping {len(keep)} earlier runs from {path}")
+    return keep
+
+
+def write_config(out: str, cfg: Config):
+    """config.json of the folder; when runs are added to an existing folder, its seeds become the union."""
+    d = cfg.to_dict()
+    path = os.path.join(out, "config.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            old = json.load(f)
+        d["seeds"] = sorted(set(old.get("seeds", [])) | set(d.get("seeds", [])))
+    with open(path, "w") as f:
+        json.dump(d, f, indent=2)
+
+
 def main():
     cfg, out, workers, list_jobs, job_index = parse_args()
+    if "/" in out or os.sep in out:
+        outs = [(cfg, out)]
+    else:                                   # bare name: one folder per algorithm, results/<algo>/<name>
+        from dataclasses import replace
+        outs = [(replace(cfg, algos=(a,)), os.path.join("results", a, out)) for a in cfg.algos]
+    for c, o in outs:
+        run_grid(c, o, workers, list_jobs, job_index)
+
+
+def run_grid(cfg: Config, out: str, workers: int, list_jobs: bool, job_index):
     if list_jobs:
         print(len(make_jobs(cfg, out)))
         return
@@ -359,8 +401,7 @@ def main():
         return
     preflight(cfg)
     os.makedirs(out, exist_ok=True)
-    with open(os.path.join(out, "config.json"), "w") as f:
-        json.dump(cfg.to_dict(), f, indent=2)
+    write_config(out, cfg)
     write_csv(os.path.join(out, "reference.csv"), reference(cfg))
 
     jobs = make_jobs(cfg, out)
@@ -368,11 +409,12 @@ def main():
           f"agents={list(cfg.agents)} algos={list(cfg.algos)} seeds={list(cfg.seeds)} "
           f"steps/run={cfg.env_steps:,}")
     print(f"{len(jobs)} runs on {workers} workers -> {out}")
+    earlier = previous_rows(out, jobs)
     rows, t0 = [], time.time()
 
     def report(i, row):
         rows.append(row)
-        write_csv(os.path.join(out, "results.csv"), rows)       # partial results after every run
+        write_csv(os.path.join(out, "results.csv"), earlier + rows)   # partial results after every run
         tag = "".join(f" {f}={row[f]:g}" for f, grid, _ in VARIANTS if getattr(cfg, grid))
         print(f"  [{i}/{len(jobs)}] seed={row['seed']} {row['algo']:>4} {row['reward']:<10}{tag} "
               f"partner={row['partner']:<6} n={row['agents']} team={row['soups']:.2f} own={row['own_soups']:.2f} "
