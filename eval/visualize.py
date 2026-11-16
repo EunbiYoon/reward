@@ -127,7 +127,7 @@ def main():
     a = p.parse_args()
 
     from environment import make
-    from .config import load_config, make_config
+    from train.config import load_config, make_config
     cfg_path = os.path.join(a.run, "config.json")
     cfg = load_config(cfg_path) if os.path.exists(cfg_path) and not a.preview else None
     if cfg is None or (a.env and a.env != cfg.env):

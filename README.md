@@ -15,6 +15,7 @@ gives it.
 - `run.py`: trains every (seed, optimizer, reward, partner) of a grid and saves the checkpoints
   (`models/`), learning curves (`curves/`) and `train_log.csv`. Training only.
 - `ppo.py`, `grpo.py`: the two optimizers used in the paper.
+- `config.py`: every experiment setting (steps, learning rates, rewards, layout, evaluation games).
 - `deep_policy.py`: MLP policy, observation normalization, checkpoints.
 - `resume.py`: resumes a run after a cluster job is interrupted.
 
@@ -32,7 +33,6 @@ gives it.
 - `coalitions.py`: the measurement. It replays each episode three ways (full team, learner alone,
   partner alone) to get the Shapley share s and the credit gap (own share of deliveries − s).
 - `summarize.py`: tables and verdicts (fake help, free-riding, credit theft).
-- `oversight.py`: how many hacked runs a team-score supervisor would accept.
 - `visualize.py`: GIFs of the cooks.
 
 ```bash

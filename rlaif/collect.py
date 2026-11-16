@@ -26,7 +26,7 @@ from multiprocessing import get_context
 import numpy as np
 
 from eval.coalitions import evaluate_coalitions
-from eval.config import ENV_DEFAULTS
+from train.config import ENV_DEFAULTS
 
 from .behaviors import BUILTIN, make_behavior
 

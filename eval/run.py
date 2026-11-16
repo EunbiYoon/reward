@@ -32,7 +32,7 @@ from multiprocessing import get_context
 from train.run import make_env, partner_tag, read_csv, write_csv
 
 from .coalitions import evaluate_coalitions, policy_actor, torch_reseed
-from .config import Config, load_config
+from train.config import Config, load_config
 
 
 def rm_score(cfg: Config, traces: list) -> float:

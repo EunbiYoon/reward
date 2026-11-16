@@ -13,7 +13,7 @@ is scored afterwards on team soups and Shapley credit (eval/coalitions.py), neve
 
 One update = collect `rollout_steps` steps -> GAE advantages -> `epochs` passes of clipped-PPO
 minibatch updates. The paper uses 2M steps, 4000-step rollouts (10 episodes of 400), 8 epochs,
-minibatch 500, lr 3e-4, gamma 0.99, lambda 0.98, entropy 0.01, hidden 128 (eval/config.py).
+minibatch 500, lr 3e-4, gamma 0.99, lambda 0.98, entropy 0.01, hidden 128 (train/config.py).
 """
 from __future__ import annotations
 

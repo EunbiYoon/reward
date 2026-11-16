@@ -8,7 +8,7 @@
 #   CPU  more seeds (3,4) for the main grid and the cf reward, then the bonus and noise sweeps
 #   GPU  the LLM judge (Ollama) on the theft pool, three prompts: basic, + Shapley definition,
 #        + definition and each episode's solo results
-# At the end: merged summaries, oversight, judge audit and the paper figures (docs/paper/figures/).
+# At the end: merged summaries, judge audit and the paper figures (docs/paper/figures/).
 set -u
 cd "$(dirname "$0")/.."
 PY=${PY:-venv/bin/python}
@@ -62,7 +62,6 @@ wait "$JPID"
 say "final reports"
 DIRS=$(for d in paper/full5 lbf_full rware_full paper/cf5 h7_bonus h8_noise; do
        [ -f "results/$d/results.csv" ] && echo "results/$d"; done)
-"$PY" -m eval.oversight $DIRS --out results/paper/oversight.md > /dev/null 2>&1
 "$PY" -m rlaif.audit --run "$THEFT" > /dev/null 2>&1
 "$PY" scripts/paper_figures.py > logs/paper_figures.log 2>&1 && say "figures -> docs/paper/figures/" \
     || say "figures FAILED (see logs/paper_figures.log)"
