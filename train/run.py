@@ -24,7 +24,8 @@ Cluster (one run per Slurm array task, preemption-safe, see scripts/cluster/subm
 Writes to <out>/:
     config.json
     models/<algo>_<reward>_<partner>[_n<agents>][<variant>]_s<seed>.pt   (the policy + its settings)
-    curves/*.csv    PPO learning curve, one row per update
+    curves/*.csv    learning curve, one row per update (PPO) or group (GRPO)
+    curves/curves.png  all curves of the folder in one figure, drawn after training (--no-plot to skip)
     train_log.csv   one row per run: steps, updates, last training return, seconds, checkpoint
 Then:  python -m eval.run <out>
 """
@@ -128,7 +129,7 @@ def fit(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_pat
                             epochs=cfg.grpo_epochs, minibatch=cfg.grpo_minibatch, lr=cfg.grpo_lr,
                             clip_eps=cfg.clip_eps, max_grad_norm=cfg.max_grad_norm,
                             advantage=cfg.grpo_advantage, hidden=cfg.hidden, aux_coef=cfg.aux_coef,
-                            resume_path=resume_path)
+                            resume_path=resume_path, curve_path=curve_path)
         return train_grpo_deep(env, gc, seed)
     raise ValueError(f"algos are {', '.join(ALGOS)}, got {algo!r}")
 
@@ -147,7 +148,7 @@ def run_job(args) -> dict:
         os.makedirs(os.path.join(out, "resume"), exist_ok=True)
         resume_path = os.path.join(out, "resume", name)
     os.makedirs(os.path.join(out, "curves"), exist_ok=True)
-    curve_path = os.path.join(out, "curves", name.removesuffix(".pt") + ".csv")   # PPO learning curve
+    curve_path = os.path.join(out, "curves", name.removesuffix(".pt") + ".csv")   # learning curve (PPO, GRPO)
     if not resume_path and os.path.exists(curve_path):
         os.remove(curve_path)                       # a fresh run starts a fresh curve
     env = make_env(cfg, reward, partner, n_agents)
@@ -238,7 +239,18 @@ def write_config(out: str, cfg: Config):
         json.dump(d, f, indent=2)
 
 
-def run_one(cfg: Config, out: str, index: int, evaluate: bool):
+def draw_curves(out: str):
+    """Draw <out>/curves/curves.png from the learning-curve CSVs (scripts/plot_curves.py).
+    A plotting problem is reported but never stops a run: the checkpoints are already saved."""
+    try:
+        from scripts.plot_curves import draw
+        print(f"learning curves -> {draw([out])}")
+    except (Exception, SystemExit) as e:
+        print(f"could not draw the learning curves ({type(e).__name__}: {e}); "
+              f"run later:  python scripts/plot_curves.py {out}")
+
+
+def run_one(cfg: Config, out: str, index: int, evaluate: bool, plot: bool = True):
     """Slurm-array mode: train job `index` of the grid (skipped if already finished), then merge parts."""
     from dataclasses import replace
     jobs = make_jobs(replace(cfg, resume=True), out)
@@ -268,12 +280,14 @@ def run_one(cfg: Config, out: str, index: int, evaluate: bool):
                 rows.append(json.load(f))
     write_csv(os.path.join(out, "train_log.csv"), rows)
     print(f"{len(rows)}/{len(jobs)} runs trained in {out}")
+    if plot and len(rows) >= len(jobs):      # the last array task to finish draws the graph once
+        draw_curves(out)
     if evaluate:
         from eval.run import evaluate_part
         evaluate_part(out, name)
 
 
-def run_grid(cfg: Config, out: str, workers: int, evaluate: bool):
+def run_grid(cfg: Config, out: str, workers: int, evaluate: bool, plot: bool = True):
     preflight(cfg)
     os.makedirs(out, exist_ok=True)
     write_config(out, cfg)
@@ -303,6 +317,8 @@ def run_grid(cfg: Config, out: str, workers: int, evaluate: bool):
         for i, job in enumerate(jobs, 1):
             report(i, run_job(job))
     print(f"trained in {time.time() - t0:.0f}s.")
+    if plot:
+        draw_curves(out)
     if evaluate:
         from eval.run import evaluate_run
         evaluate_run(out, workers, names=[os.path.basename(r["checkpoint"]) for r in rows])
@@ -336,6 +352,8 @@ def parse_args():
     p.add_argument("--aux-coef", type=float, nargs="+",
                    help="PPO/GRPO partner-prediction head weight (0 = no head); several values = a grid (H12)")
     p.add_argument("--eval", action="store_true", help="measure the new checkpoints right after training (eval.run)")
+    p.add_argument("--no-plot", action="store_true",
+                   help="skip drawing <out>/curves/curves.png after training (drawn by default)")
     p.add_argument("--list-jobs", action="store_true", help="print the number of runs in this grid and exit")
     p.add_argument("--job-index", type=int, help="run only this run of the grid (Slurm array task id)")
     a = p.parse_args()
@@ -361,9 +379,9 @@ def main():
             print(len(make_jobs(c, out)))
         elif a.job_index is not None:
             os.makedirs(out, exist_ok=True)
-            run_one(c, out, a.job_index, a.eval)
+            run_one(c, out, a.job_index, a.eval, plot=not a.no_plot)
         else:
-            run_grid(c, out, a.workers, a.eval)
+            run_grid(c, out, a.workers, a.eval, plot=not a.no_plot)
 
 
 if __name__ == "__main__":

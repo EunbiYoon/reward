@@ -64,6 +64,21 @@ def write_curve(path: str, row: dict):
         w.writerow(row)
 
 
+def curve_row(done_eps: list, updates: int, steps: int, env) -> dict:
+    """One learning-curve row: the mean of the episodes that ended in this update (PPO and GRPO)."""
+    m = {k: float(np.mean([e[k] for e in done_eps])) for k in done_eps[0]}
+    return {
+        "update": updates, "env_steps": steps, "episodes": len(done_eps),
+        "proxy_return": round(m["proxy_return"], 3),        # what the optimizer maximizes
+        "team_soups": round(m["soups"], 3),                 # the true objective
+        "own_soups": round(m["own_soups"], 3), "partner_soups": round(m["partner_soups"], 3),
+        "pickups": round(m["pickups0"], 2),                 # learner's onion + dish pickups
+        "hold_dish_frac": round(m["hold_dish_steps0"] / m["length"], 3),   # time holding a dish/soup
+        "own_pot_onions": round(m["pot_onions0"], 2),        # onions the learner put into pots
+        "partner_pot_onions": round(m["pot_onions1"], 2),    # onions the partner put into pots
+        "shaping_coef": round(float(getattr(base_env(env), "anneal_coef", lambda: float("nan"))()), 3)}
+
+
 def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
     """env: environment.Kitchen (or any env with the same interface). Returns (policy, obs_rms, log)."""
     # ---------------------------------------------------------------- networks and optimizer
@@ -189,17 +204,7 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
         updates += 1
         if cfg.curve_path and done_eps:
             # mean over the episodes that ended in this rollout (10 with 4000-step rollouts of 400)
-            m = {k: float(np.mean([e[k] for e in done_eps])) for k in done_eps[0]}
-            write_curve(cfg.curve_path, {
-                "update": updates, "env_steps": steps, "episodes": len(done_eps),
-                "proxy_return": round(m["proxy_return"], 3),        # what PPO maximizes
-                "team_soups": round(m["soups"], 3),                 # the true objective
-                "own_soups": round(m["own_soups"], 3), "partner_soups": round(m["partner_soups"], 3),
-                "pickups": round(m["pickups0"], 2),                 # learner's onion + dish pickups
-                "hold_dish_frac": round(m["hold_dish_steps0"] / m["length"], 3),   # time holding a dish/soup
-                "own_pot_onions": round(m["pot_onions0"], 2),        # onions the learner put into pots
-                "partner_pot_onions": round(m["pot_onions1"], 2),    # onions the partner put into pots
-                "shaping_coef": round(float(getattr(base_env(env), "anneal_coef", lambda: float("nan"))()), 3)})
+            write_curve(cfg.curve_path, curve_row(done_eps, updates, steps, env))
         done_eps = []
         res.maybe_save(state)                        # checkpoint every save_every_s seconds
         if log_every and updates % log_every == 0 and ep_returns:

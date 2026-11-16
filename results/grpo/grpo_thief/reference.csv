@@ -1,2 +1,0 @@
-partner,partner_noise,agents,soups,own_soups,partner_soups,pickups,onion_pickups,dish_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,hold_steps,hold_dish_steps,soup_pickups,intercepts,pot_onions,near_steps,rm_score
-greedy,,2,9.1,5.7,3.4,19.9,13.8,6.1,7.0,7.0,4.55,0.5,0.6263736263736264,0.12637362637362637,284.5,106.7,5.8,4.6,13.3,224.3,nan
