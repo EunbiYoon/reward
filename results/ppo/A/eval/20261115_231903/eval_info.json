@@ -1,0 +1,11 @@
+{
+  "time": "2026-11-15 23:19:03",
+  "eval_episodes": 10,
+  "eval_deterministic": false,
+  "evaluated": [
+    "ppo_team_greedy_s0.pt",
+    "ppo_team_greedy_s1.pt",
+    "ppo_team_greedy_s2.pt"
+  ],
+  "carried_over_from": "results/ppo/A"
+}

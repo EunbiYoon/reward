@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import pandas as pd  # noqa: E402
 
 from train.config import Config  # noqa: E402
+from eval.paths import results_path  # noqa: E402
 
 COLS = ["soups", "own_soups", "partner_soups", "pickups", "v_partner_alone", "v_learner_alone", "phi", "s",
         "own_share", "credit_gap"]
@@ -73,7 +74,7 @@ def main():
     p.add_argument("--partners", nargs="+", default=["greedy"])
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     a = p.parse_args()
-    res = pd.read_csv(os.path.join(a.run, "results.csv"))
+    res = pd.read_csv(results_path(a.run))
     res = res[res.algo.isin(a.algos) & res.partner.isin(a.partners)]
     for n in a.agents:
         rows = [r for _, r in res.iterrows()]

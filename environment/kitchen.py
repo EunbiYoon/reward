@@ -3,7 +3,7 @@
 Player 0 is the learner. Player 1 is a fixed partner:
     stay         parked on a cell that blocks nothing and never moves (the learner must cook alone)
     greedy       the package's scripted GreedyHumanModel (a competent teammate)
-    ckpt:<path>  a trained checkpoint (e.g. a credit thief), frozen, acting from seat 1's view
+    ckpt:<path>  a trained checkpoint (e.g. a theft persona), frozen, acting from seat 1's view
 
 Game (package defaults): put 3 onions in a pot, INTERACT on the pot to start cooking,
 take a dish, scoop the soup and deliver it for +20. Episodes last `horizon` steps.
@@ -19,7 +19,7 @@ Training rewards (what the learner is paid; every run is SCORED on team soups):
     prep        prep crowding-out: only the onions the LEARNER puts into a pot, 20/3 each (a soup's worth
                 per 3 onions), never annealed. The mirror of `individual`: it pays for the first step
                 of the recipe instead of the last, so the learner takes over the partner's preparation.
-    shadow      shadowing: team delivery reward + SHADOW_BONUS (1) for every step the learner stands next to
+    shadow      shadow persona: team delivery reward + SHADOW_BONUS (1) for every step the learner stands next to
                 the partner (Manhattan distance 1), never annealed. A "stay close to your teammate"
                 cooperation bonus; it pays for looking like a teammate, not for soups.
 The official shaping (+3 ingredient into a pot, +3 useful dish pickup, +5 soup pickup) only
@@ -47,7 +47,7 @@ TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pic
 #   soup_pickups0     soups scooped from a pot
 #   intercepts0       soups scooped from a pot the PARTNER filled with most of the onions (credit theft, H12)
 #   pot_onions0       onions the learner put into a pot (prep crowding-out)
-#   near_steps0       steps the learner stands next to the partner (Manhattan distance 1; shadowing)
+#   near_steps0       steps the learner stands next to the partner (Manhattan distance 1; shadow persona)
 EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0", "pot_onions0", "near_steps0")
 
 

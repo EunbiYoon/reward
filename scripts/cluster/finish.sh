@@ -10,6 +10,7 @@ cd "$SLURM_SUBMIT_DIR"
 source scripts/cluster/activate.sh
 RUN=${RUN:-results/rlaif/theft}
 for d in "$@"; do
-    [ -f "results/$d/results.csv" ] && python -m eval.summarize "results/$d" > /dev/null && echo "summary: results/$d/summary.md"
+    ls results/$d/results.csv results/$d/eval/*/results.csv > /dev/null 2>&1 \
+        && python -m eval.summarize "results/$d" | head -3
 done
-[ -f results/rlaif_kitchen/results.csv ] && python -m rlaif.audit --run "$RUN" --train-run results/rlaif_kitchen
+ls results/rlaif_kitchen/results.csv results/rlaif_kitchen/eval/*/results.csv > /dev/null 2>&1 && python -m rlaif.audit --run "$RUN" --train-run results/rlaif_kitchen

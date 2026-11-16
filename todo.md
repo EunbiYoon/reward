@@ -4,7 +4,7 @@
 Mac은 PPO, Windows는 GRPO. 두 컴퓨터가 같은 폴더에 쓰지 않으니 끝나면 폴더를 한쪽으로 모은다.
 
 - 체크포인트 만들기: `python -m train.run ...` → `models/*.pt`, `curves/`, `config.json`, `train_log.csv`
-- 학습이 잘 됐는지 확인: `python -m eval.run <폴더>` → `results.csv`(팀 수프, 자기 배달, `s`, credit gap), `reference.csv`
+- 학습이 잘 됐는지 확인: `python -m eval.run <폴더>` → `<폴더>/eval/<날짜_시간>/persona_check.md`(요리 1–7단계 중 누가 무엇을 했는지, 의도한 페르소나와 맞는지), `results.csv`, `reference.csv`
   (`train.run`에 `--eval`을 붙이면 학습 직후 바로 확인까지 한다.)
 
 ## 0. 돌리기 전에
@@ -21,23 +21,23 @@ Windows (GRPO)
 - [O] `.\venv\Scripts\python -m eval.run --algos grpo --rewards team --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/A --workers 3`
 
 결과 확인 (2단계 B 전에 꼭):
-- [ ] `results/<algo>/A/results.csv`에서 seed 0의 팀 수프(soups)가 0에 가깝지 않은지. 예전 PPO-A는 11.0개(전부 직접 배달),
+- [ ] `results/<algo>/A/eval/<가장 최근>/results.csv`에서 seed 0의 팀 수프(soups)가 0에 가깝지 않은지. 예전 PPO-A는 11.0개(전부 직접 배달),
       GRPO-A는 8.3개(greedy가 전부 만듦). 요리를 못 배웠으면 B를 돌려도 의미가 없다.
 - 동료로 쓸 체크포인트: `results/ppo/A/models/ppo_team_greedy_s0.pt`, `results/grpo/A/models/grpo_team_greedy_s0.pt`
 
 ## 2단계 A. greedy 옆 페르소나 (A가 필요 없어서 1단계와 동시에 돌려도 됨)
 
-individual = 배달 뺏기, pickup = 바쁜 척, shadow = 그림자. (team은 1단계 A와 같은 조건이라 뺐다.)
+individual = theft, pickup = pickup, shadow = shadow. (team은 1단계 A와 같은 조건이라 뺐다.)
 
 Mac (PPO)
-- [ ] `venv/bin/python -m eval.run --algos ppo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/ppo/greedy_personas --workers 9`
+- [ ] `venv/bin/python -m train.run --algos ppo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/ppo/greedy_personas --workers 9`
 
 Windows (GRPO)
-- [ ] `.\venv\Scripts\python -m eval.run --algos grpo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/greedy_personas --workers 9`
+- [ ] `.\venv\Scripts\python -m train.run --algos grpo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --layout cramped_room --out results/grpo/greedy_personas --workers 9`
 
 ## 2단계 B. A 옆 페르소나 (1단계 A를 확인한 뒤)
 
-team = 준비 담당(대조군), individual = 포기, pickup = 바쁜 척, shadow = 그림자.
+team = preparer(대조군), individual = quit, pickup = pickup, shadow = shadow.
 
 Mac (PPO) — PPO-A가 준비됐으니 바로 돌려도 된다
 - [ ] 학습: `venv/bin/python -m train.run --algos ppo --rewards team individual pickup shadow --partners ckpt:results/ppo/A/models/ppo_team_greedy_s0.pt --seeds 0 1 2 --layout cramped_room --out results/ppo/A_personas --workers 12`
@@ -59,7 +59,7 @@ Windows (GRPO) — GRPO-A가 끝난 뒤
 ## 끝난 뒤 생기는 체크포인트
 
 `results/<algo>/A_personas/models/` 아래, seed마다 하나씩:
-- `<algo>_team_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (준비 담당)
-- `<algo>_individual_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (포기)
-- `<algo>_pickup_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (바쁜 척)
-- `<algo>_shadow_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (그림자)
+- `<algo>_team_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (preparer)
+- `<algo>_individual_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (quit)
+- `<algo>_pickup_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (pickup)
+- `<algo>_shadow_ckpt-<algo>_team_greedy_s0_s{0,1,2}.pt` (shadow)

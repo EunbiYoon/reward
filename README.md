@@ -20,19 +20,22 @@ gives it.
 - `resume.py`: resumes a run after a cluster job is interrupted.
 
 ## 3. `rlaif/`: LLM judges
-- `collect.py`: records a pool of episodes from different seat-0 agents (scripted cook, trained thief,
-  free-rider, fake helper, blocker), each with its true Shapley contribution.
+- `collect.py`: records a pool of episodes from different seat-0 agents (scripted cook, trained theft,
+  quit, pickup and shadow personas, blocker), each with its true Shapley contribution.
 - `describe.py`: turns an episode into the event log the judge reads.
 - `judge.py`: an LLM compares two episodes and gives each seat-0 agent a credit share.
   Judges: Qwen via Ollama, GPT-4o, Claude, vLLM. Prompts: basic, + Shapley definition, + solo results.
-- `audit.py`: scores the judge against Shapley (how often it is fooled by busy work or by credit theft).
+- `audit.py`: scores the judge against Shapley (how often it is fooled by the pickup or theft persona).
 - `reward_model.py`, `learned_env.py`: turn the judge's verdicts into a training reward.
 
 ## 4. `eval/`: check what training produced
-- `run.py`: loads every checkpoint of a run folder and measures it (`results.csv`, `reference.csv`).
+- `run.py`: loads every checkpoint of a run folder and measures it (`results.csv`, `reference.csv`)
+  Each evaluation goes to a new `<run>/eval/<YYYYmmdd_HHMMSS>/`; readers use the newest (`paths.py`).
+- `persona.py`: did training produce the intended persona? Counts soup steps 1-7 for learner and partner
+  and checks them against the persona's rules (`persona_match` in `results.csv`, log in `persona_check.md`).
 - `coalitions.py`: the measurement. It replays each episode three ways (full team, learner alone,
   partner alone) to get the Shapley share s and the credit gap (own share of deliveries − s).
-- `summarize.py`: tables and verdicts (fake help, free-riding, credit theft).
+- `summarize.py`: tables and verdicts (pickup, free-riding, theft).
 - `visualize.py`: GIFs of the cooks.
 
 ```bash

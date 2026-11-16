@@ -12,6 +12,10 @@ soups delivered by each cook, and the learner's onion and dish pickups.
     # the three rewards side by side (same algo, partner, seed, episode)
     python -m eval.visualize --run results/full --algo ppo --partner greedy --seed 0 --compare
 
+    # any checkpoints side by side, each next to the partner it was trained with
+    python -m eval.visualize --ckpts results/ppo/ppo_theft/models/ppo_individual_greedy_s0.pt \
+        results/ppo/A_personas/models/ppo_individual_ckpt-ppo_team_greedy_s0_s0.pt
+
     # one cook frozen, as in the Shapley evaluation
     python -m eval.visualize --run results/full --algo ppo --reward team --partner greedy --freeze partner
 
@@ -49,7 +53,8 @@ def record(env, seat0, seat1: str, seed: int, title: str) -> list[np.ndarray]:
         out.append(header(img, [title,
                                 f"team {env.unit} {tot['soups']:.4g}  learner {tot['own_soups']:.4g}  "
                                 f"partner {tot['partner_soups']:.4g}",
-                                f"learner pickups {tot['pickups0']:.0f}"]))
+                                f"learner: pickups {tot['pickups0']:.0f}, onions into pot "
+                                f"{tot.get('pot_onions0', 0):.0f}, steps next to partner {tot.get('near_steps0', 0):.0f}"]))
     return out
 
 
@@ -91,6 +96,21 @@ def save(frames: list[np.ndarray], path: str, fps: int):
     print(f"saved {path} ({len(frames)} frames)")
 
 
+def ckpt_clip(env, path: str, seed: int, deterministic: bool) -> list[np.ndarray]:
+    """A checkpoint replayed next to the partner it was trained with, titled with its intended persona."""
+    from train.deep_policy import load_checkpoint
+    from train.run import partner_tag
+    from .persona import intended
+    policy, obs_rms, m = load_checkpoint(path)
+    partner = m["partner"]
+    if partner.startswith("ckpt:") and not os.path.exists(partner[5:]):
+        raise SystemExit(f"{path}: its partner {partner[5:]} is missing")
+    who = "A" if partner.startswith("ckpt:") else partner
+    persona = intended(m["reward"], partner) or "?"
+    title = f"{persona}: {m['algo']} {m['reward']} reward next to {who} ({partner_tag(partner)}), seed {m['seed']}"
+    return record(env, policy_actor(policy, obs_rms, deterministic), partner, seed, title)
+
+
 def load_actor(run: str, algo: str, reward: str, partner: str, seed: int, deterministic: bool,
                n_agents: int = 2):
     from train.deep_policy import load_checkpoint
@@ -112,6 +132,7 @@ def main():
     p.add_argument("--seed", type=int, default=0, help="training seed of the checkpoint")
     p.add_argument("--episode", type=int, default=0, help="evaluation episode (seed 10000 + k)")
     p.add_argument("--compare", action="store_true", help="the run's rewards side by side")
+    p.add_argument("--ckpts", nargs="+", help="checkpoint files side by side, each next to its training partner")
     p.add_argument("--freeze", choices=["learner", "partner"],
                    help="freeze the learner or every partner (Shapley coalitions)")
     p.add_argument("--agents", type=int, default=2, choices=[2, 3, 4],
@@ -129,6 +150,8 @@ def main():
     from environment import make
     from train.config import load_config, make_config
     cfg_path = os.path.join(a.run, "config.json")
+    if a.ckpts:                                   # settings from the first checkpoint's run folder
+        cfg_path = os.path.join(os.path.dirname(os.path.dirname(a.ckpts[0])), "config.json")
     cfg = load_config(cfg_path) if os.path.exists(cfg_path) and not a.preview else None
     if cfg is None or (a.env and a.env != cfg.env):
         cfg = make_config(env=a.env)
@@ -139,7 +162,11 @@ def main():
     seed = EVAL_SEED0 + a.episode
     seat1 = "stay" if a.freeze == "partner" else a.partner
 
-    if a.preview:
+    if a.ckpts:
+        frames = side_by_side([ckpt_clip(env, c, seed, det) for c in a.ckpts])
+        names = "_vs_".join(os.path.basename(c).removesuffix(".pt") for c in a.ckpts)
+        out = a.out or f"results/videos/{names[:120]}_ep{a.episode}.gif"
+    elif a.preview:
         frames = record(env, "greedy", seat1, seed, f"preview: greedy cook + {seat1} partner")
         out = a.out or f"docs/videos/preview_{seat1}.gif"
     elif a.compare:

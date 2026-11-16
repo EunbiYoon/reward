@@ -17,6 +17,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+import sys  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from eval.paths import has_results, results_path  # noqa: E402
 
 OUT = "docs/paper/figures"
 C = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]   # categorical slots 1-5
@@ -30,12 +33,12 @@ plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.edgecolor": I
 
 
 def first(*paths):
-    return next((p for p in paths if os.path.exists(os.path.join(p, "results.csv"))), None)
+    return next((p for p in paths if has_results(p)), None)
 
 
 def load(run):
-    df = pd.read_csv(os.path.join(run, "results.csv"))
-    ref = pd.read_csv(os.path.join(run, "reference.csv"))
+    df = pd.read_csv(results_path(run))
+    ref = pd.read_csv(results_path(run, "reference.csv"))
     return df, ref
 
 
@@ -73,7 +76,7 @@ def fig_rl():
     df, ref = load(main)
     cf = first("results/paper/cf5", "results/h10_cf")
     if cf:
-        df = pd.concat([df, pd.read_csv(os.path.join(cf, "results.csv"))], ignore_index=True)
+        df = pd.concat([df, pd.read_csv(results_path(cf))], ignore_index=True)
     df = df[df.partner == "greedy"]
     r = ref[ref.partner == "greedy"].iloc[0]
     order = [x for x in ("pickup", "team", "individual", "cf") if x in set(df.reward)]
@@ -101,8 +104,8 @@ def fig_judge():
                                     ("ollama_solo", "+ definition + solo results")) if k in rep]
     if not conds:
         return
-    names = {"greedy": "scripted\ncook", "fidget": "fidget\n(blocks)", "ckpt:ppo_individual_greedy_s0": "thief\n(PPO indiv.)",
-             "ckpt:grpo_team_greedy_s0": "spectator\n(GRPO team)", "ckpt:ppo_pickup_greedy_s0": "fake help\n(PPO pickup)"}
+    names = {"greedy": "scripted\ncook", "fidget": "fidget\n(blocks)", "ckpt:ppo_individual_greedy_s0": "theft\n(PPO indiv.)",
+             "ckpt:grpo_team_greedy_s0": "spectator\n(GRPO team)", "ckpt:ppo_pickup_greedy_s0": "pickup\n(PPO pickup)"}
     behs = [b for b in names if any(r["behavior"] == b for k, _ in conds for r in rep[k]["per_behavior"])]
     fig, ax = plt.subplots(figsize=(6.6, 2.2))
     w = 0.8 / len(conds)

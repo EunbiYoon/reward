@@ -13,6 +13,9 @@ import argparse
 import os
 
 import pandas as pd
+import sys  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from eval.paths import results_path  # noqa: E402
 
 ALGOS = ["ppo", "grpo", "sac"]
 ROWS = [("A", "greedy", "team"), ("B1", "A", "team"), ("B2", "A", "individual"), ("B3", "A", "pickup")]
@@ -21,12 +24,12 @@ A_DIR = {"ppo": "results/full", "grpo": "results/full", "sac": "results/sac_team
 
 def load(algo: str, row: str):
     if row == "A":
-        path = os.path.join(A_DIR[algo], "results.csv")
+        path = results_path(A_DIR[algo])
         if not os.path.exists(path):
             return None
         d = pd.read_csv(path)
         return d[(d.algo == algo) & (d.reward == "team") & (d.partner == "greedy")]
-    path = f"results/{algo}_{row}/results.csv"
+    path = results_path(f"results/{algo}_{row}")
     return pd.read_csv(path) if os.path.exists(path) else None
 
 
