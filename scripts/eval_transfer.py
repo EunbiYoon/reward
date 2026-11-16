@@ -36,7 +36,7 @@ def job(args):
     import torch
     torch.set_num_threads(1)
     from eval.coalitions import evaluate_coalitions, policy_actor, torch_reseed
-    from eval.run import ckpt_name, make_env
+    from train.run import ckpt_name, make_env
     from train.deep_policy import load_checkpoint
     cfg = load_cfg(run)
     path = os.path.join(run, "models", ckpt_name(row["algo"], row["reward"], row["partner"], int(row["seed"]),
@@ -57,7 +57,7 @@ def job(args):
 
 def reference(run: str, partner: str, n_agents: int) -> dict:
     from eval.coalitions import evaluate_coalitions
-    from eval.run import make_env
+    from train.run import make_env
     cfg = load_cfg(run)
     env = make_env(cfg, "team", partner, n_agents)
     met = evaluate_coalitions(env, "greedy", partner, cfg.eval_episodes)

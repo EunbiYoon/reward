@@ -1,4 +1,4 @@
-"""Experiment configuration (matches the proposal). Override from the CLI in eval/run.py."""
+"""Experiment configuration (matches the proposal). Override from the CLI in train/run.py."""
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace

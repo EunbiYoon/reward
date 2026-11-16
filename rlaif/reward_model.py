@@ -203,8 +203,8 @@ def main():
     with open(os.path.join(a.run, f"rm_{a.judge}.json"), "w") as f:
         json.dump(met, f, indent=2)
     print(json.dumps({k: v for k, v in met.items() if k != "val_seeds"}, indent=2))
-    print(f"-> {path}\nNext:  python -m eval.run --env {r0['env']} --rewards learned team individual "
-          f"--reward-model {path} --out <dir>")
+    print(f"-> {path}\nNext:  python -m train.run --env {r0["env"]} --rewards learned team individual "
+          f"--reward-model {path} --out <dir> --eval")
 
 
 if __name__ == "__main__":

@@ -20,10 +20,10 @@ mkdir -p logs results/paper
 
 say() { echo "[$(date '+%m-%d %H:%M')] $*"; }
 
-grid() {   # grid <name> <eval.run args...>
+grid() {   # grid <name> <train.run args...>
     local name=$1; shift
     say "$name start"
-    if "$PY" -m eval.run "$@" --workers "$W" --out "results/$name" > "logs/paper_$name.log" 2>&1; then
+    if "$PY" -m train.run "$@" --eval --workers "$W" --out "results/$name" > "logs/paper_$name.log" 2>&1; then
         "$PY" -m eval.summarize "results/$name" > /dev/null 2>&1
         say "$name done"
     else

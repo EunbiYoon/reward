@@ -11,7 +11,9 @@ gives it.
   - Partners: `stay` (never moves) or `greedy` (scripted cook that plays well).
 - `warehouse.py`, `foraging.py`, `alem.py`: three more games behind the same interface.
 
-## 2. `train/`: the learner
+## 2. `train/`: make the checkpoints
+- `run.py`: trains every (seed, optimizer, reward, partner) of a grid and saves the checkpoints
+  (`models/`), learning curves (`curves/`) and `train_log.csv`. Training only.
 - `ppo.py`, `grpo.py`: the two optimizers used in the paper.
 - `deep_policy.py`: MLP policy, observation normalization, checkpoints.
 - `resume.py`: resumes a run after a cluster job is interrupted.
@@ -25,8 +27,8 @@ gives it.
 - `audit.py`: scores the judge against Shapley (how often it is fooled by busy work or by credit theft).
 - `reward_model.py`, `learned_env.py`: turn the judge's verdicts into a training reward.
 
-## 4. `eval/`: train and measure
-- `run.py`: trains every (seed, optimizer, reward, partner) and measures the result.
+## 4. `eval/`: check what training produced
+- `run.py`: loads every checkpoint of a run folder and measures it (`results.csv`, `reference.csv`).
 - `coalitions.py`: the measurement. It replays each episode three ways (full team, learner alone,
   partner alone) to get the Shapley share s and the credit gap (own share of deliveries − s).
 - `summarize.py`: tables and verdicts (fake help, free-riding, credit theft).
@@ -35,9 +37,10 @@ gives it.
 
 ```bash
 pip install -r requirements.txt
-python -m eval.run --rewards team individual pickup --partners stay greedy --out results/x
-python -m eval.summarize results/x
+python -m train.run --algos ppo --rewards team individual pickup --partners greedy --seeds 0 1 2 --out results/ppo/x
+python -m eval.run results/ppo/x
+python -m eval.summarize results/ppo/x
 ```
 
-Also: `scripts/` (paper pipeline, `cluster/` for UMass Unity), `docs/` (paper, report, project page,
-[file-by-file guide](docs/STRUCTURE.md)), `results/` (outputs; what each folder is and which are used: [results/README.md](results/README.md)).
+Also: `scripts/` (paper pipeline, `cluster/` for UMass Unity), `docs/page/` (project page), `results/`
+(outputs, one folder per algorithm: `results/ppo/`, `results/grpo/`).

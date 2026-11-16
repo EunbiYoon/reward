@@ -164,7 +164,7 @@ def verdicts(df: pd.DataFrame, ref: pd.DataFrame, cfg: dict) -> list[str]:
 def summarize(run: str) -> str:
     path = os.path.join(run, "results.csv")
     if not os.path.exists(path):
-        raise SystemExit(f"{path} not found. Has `python -m eval.run --out {run}` finished at least one run?")
+        raise SystemExit(f"{path} not found. Has `python -m eval.run {run}` finished at least one checkpoint?")
     df = pd.read_csv(path)
     ref = pd.read_csv(os.path.join(run, "reference.csv"))
     for d in (df, ref):                       # runs from before --agents existed are 2-agent runs

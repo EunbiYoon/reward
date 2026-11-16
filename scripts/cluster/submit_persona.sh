@@ -15,13 +15,13 @@ mkdir -p logs
 python -c "import overcooked_ai_py, torch" 2>/dev/null || { echo "activate the env first: source scripts/cluster/activate.sh (and finish setup_conda.sh)"; exit 1; }
 MAIL=${MAIL:-}
 
-array() {        # array <name> [--dependency=...] -- <eval.run grid args...>
+array() {        # array <name> [--dependency=...] -- <train.run grid args...>
     local name=$1; shift
     local dep=()
     if [ "$1" != "--" ]; then dep=("$1"); shift; fi
     shift
     local n
-    n=$(python -m eval.run "$@" --out "results/$name" --list-jobs | tail -n 1)
+    n=$(python -m train.run "$@" --out "results/$name" --list-jobs | tail -n 1)
     local id
     id=$(sbatch --parsable --job-name="$name" --mem=4G --array=0-$((n - 1)) ${dep[@]+"${dep[@]}"} \
          scripts/cluster/run_task.sh "$name" "$@")

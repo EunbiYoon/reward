@@ -150,5 +150,5 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
            "grpo_skipped_groups": skipped,
            "train_proxy_return_last5": float(np.mean(group_means[-5:])) if group_means else float("nan")}
     if head is not None:
-        log["_partner_head"] = head       # popped by eval/run.py (held-out prediction accuracy)
+        log["_partner_head"] = head       # popped by train/run.py (saved next to the checkpoint)
     return policy, obs_rms, log
