@@ -37,7 +37,7 @@ import os
 import time
 from multiprocessing import get_context
 
-from eval.config import Config, make_config
+from train.config import Config, make_config
 
 ALGOS = ("ppo", "grpo")
 VARIANTS = (("pickup_bonus", "pickup_bonuses", "b"), ("partner_noise", "partner_noises", "e"),

@@ -9,7 +9,7 @@ Mac은 PPO, Windows는 GRPO. 두 컴퓨터가 같은 폴더에 쓰지 않으니 
 
 ## 0. 돌리기 전에
 
-- [ ] Windows에도 최신 코드가 있는지: `train/run.py`(새 파일), `eval/run.py`, `eval/config.py`, `environment/kitchen.py`, `train/`.
+- [ ] Windows에도 최신 코드가 있는지: `train/run.py`(새 파일), `eval/run.py`, `environment/kitchen.py`, `train/`.
       커밋해서 옮기거나 복사.
 
 ## 1단계. A 만들기 (greedy 옆, team 보상)

@@ -52,4 +52,4 @@ fi
 MAILOPT=()
 [ -n "$MAIL" ] && MAILOPT=(--mail-type=END,FAIL --mail-user="$MAIL")
 F=$(sbatch --parsable --job-name=finish ${MAILOPT[@]+"${MAILOPT[@]}"} --dependency=afterany:$(IFS=:; echo "${DEPS[*]}") scripts/cluster/finish.sh "${NAMES[@]}")
-echo "finish (summaries, H3 oversight, audit): job $F, after everything"
+echo "finish (summaries, audit): job $F, after everything"

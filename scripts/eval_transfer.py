@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pandas as pd  # noqa: E402
 
-from eval.config import Config  # noqa: E402
+from train.config import Config  # noqa: E402
 
 COLS = ["soups", "own_soups", "partner_soups", "pickups", "v_partner_alone", "v_learner_alone", "phi", "s",
         "own_share", "credit_gap"]
