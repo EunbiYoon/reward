@@ -3,6 +3,9 @@
     venv/bin/python scripts/persona_actions.py                 # PPO -> results/ppo/persona_actions.{png,pdf,csv}
     venv/bin/python scripts/persona_actions.py --algo grpo     # GRPO folders
     venv/bin/python scripts/persona_actions.py --replot        # redraw from the csv, no replay
+    venv/bin/python scripts/persona_actions.py --root results/ppo/A_personas --partner A   # next to A
+    venv/bin/python scripts/persona_actions.py --root results/ppo/need_curve    # greedy-partner personas only
+        (theft, pickup, shadow found anywhere under the folder) -> <root>/persona_actions.{png,pdf,csv}
 
 One panel per persona (theft, quit, pickup, shadow). x = the soup steps in cooking order; step 4 (waiting
 for the soup) is not an action and is shaded. y = actions per episode. Bars are the mean over the seed
@@ -30,6 +33,19 @@ PERSONAS = {
     "pickup": ("results/{a}/greedy_personas/models/{a}_pickup_greedy_s*.pt", "pickup reward, next to greedy"),
     "shadow": ("results/{a}/greedy_personas/models/{a}_shadow_greedy_s*.pt", "shadow reward, next to greedy"),
 }
+# --root: the personas trained next to greedy, searched anywhere under the folder; {r} = root, {a} = algo
+GREEDY_PERSONAS = {
+    "theft": ("{r}/**/models/{a}_individual_greedy_s*.pt", "individual reward, next to greedy"),
+    "pickup": ("{r}/**/models/{a}_pickup_greedy_s*.pt", "pickup reward, next to greedy"),
+    "shadow": ("{r}/**/models/{a}_shadow_greedy_s*.pt", "shadow reward, next to greedy"),
+}
+# --root with --partner A: the same rewards trained next to a frozen A checkpoint
+A_PERSONAS = {
+    "quit": ("{r}/**/models/{a}_individual_ckpt-*_s*.pt", "individual reward, next to A"),
+    "pickup": ("{r}/**/models/{a}_pickup_ckpt-*_s*.pt", "pickup reward, next to A"),
+    "shadow": ("{r}/**/models/{a}_shadow_ckpt-*_s*.pt", "shadow reward, next to A"),
+    "preparer": ("{r}/**/models/{a}_team_ckpt-*_s*.pt", "team reward, next to A"),
+}
 STEPS = ["1", "2", "3", "4", "5", "6", "7"]
 NAMES = {"1": "onion", "2": "pot", "3": "cook", "4": "wait", "5": "dish", "6": "scoop", "7": "deliver"}
 
@@ -38,7 +54,7 @@ LEARNER, PARTNER = "#2a78d6", "#eb6834"
 INK, INK2, MUTED, GRID, BASE, SURFACE = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7", "#fcfcfb"
 
 
-def measure(algo: str, episodes: int) -> pd.DataFrame:
+def measure(algo: str, episodes: int, personas: dict, root: str = "") -> pd.DataFrame:
     """One row per (persona, checkpoint, step, seat) with actions per episode, plus near_frac per checkpoint."""
     from environment.kitchen import Kitchen
     from eval.coalitions import EVAL_SEED0, policy_actor, torch_reseed
@@ -47,11 +63,12 @@ def measure(algo: str, episodes: int) -> pd.DataFrame:
 
     env = Kitchen(partner="greedy")
     rows = []
-    for persona, (pattern, _) in PERSONAS.items():
-        paths = sorted(glob.glob(pattern.format(a=algo)))
+    for persona, (pattern, _) in personas.items():
+        pattern = pattern.format(a=algo, r=root)
+        paths = sorted(glob.glob(pattern, recursive=True))
         paths = [p for p in paths if not p.endswith("_head.pt")]
         if not paths:
-            print(f"  skip {persona}: no checkpoint matches {pattern.format(a=algo)}")
+            print(f"  skip {persona}: no checkpoint matches {pattern}")
             continue
         for path in paths:
             policy, obs_rms, meta = load_checkpoint(path)
@@ -69,10 +86,10 @@ def measure(algo: str, episodes: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot(df: pd.DataFrame, path: str, algo: str):
+def plot(df: pd.DataFrame, path: str, algo: str, personas_def: dict):
     plt.rcParams.update({"font.size": 9, "axes.edgecolor": BASE, "axes.labelcolor": INK2, "xtick.color": MUTED,
                          "ytick.color": MUTED, "text.color": INK, "pdf.fonttype": 42, "savefig.bbox": "tight"})
-    personas = [p for p in PERSONAS if p in set(df.persona)]
+    personas = [p for p in personas_def if p in set(df.persona)]
     fig, axes = plt.subplots(1, len(personas), figsize=(3.6 * len(personas), 3.2), facecolor=SURFACE)
     axes = np.atleast_1d(axes)
     x = np.arange(len(STEPS))
@@ -99,7 +116,7 @@ def plot(df: pd.DataFrame, path: str, algo: str):
                     transform=ax.transAxes, ha="center", va="center", color=INK2, fontsize=8.5)
         n = d.checkpoint.nunique()
         ax.text(0, 1.13, persona, transform=ax.transAxes, fontsize=11, fontweight="bold", color=INK, va="bottom")
-        ax.text(0, 1.03, f"{PERSONAS[persona][1]} · {n} seeds", transform=ax.transAxes, fontsize=7.5,
+        ax.text(0, 1.03, f"{personas_def[persona][1]} · {n} seeds", transform=ax.transAxes, fontsize=7.5,
                 color=MUTED, va="bottom")
         if top <= 1.0 and not len(d[(d.learner > 0) | (d.partner > 0)]):
             ax.set_yticks([0])
@@ -127,16 +144,21 @@ def main():
     p.add_argument("--algo", default="ppo", choices=["ppo", "grpo"])
     p.add_argument("--episodes", type=int, default=10, help="evaluation games per checkpoint")
     p.add_argument("--replot", action="store_true", help="redraw from the saved csv")
+    p.add_argument("--root", help="only the personas next to one kind of partner, found anywhere under this folder")
+    p.add_argument("--partner", default="greedy", choices=["greedy", "A"],
+                   help="with --root: personas trained next to greedy (default) or next to a frozen A")
     a = p.parse_args()
-    out = f"results/{a.algo}/persona_actions"
+    personas = (A_PERSONAS if a.partner == "A" else GREEDY_PERSONAS) if a.root else PERSONAS
+    name = "persona_actions" + ("_A" if a.root and a.partner == "A" else "")
+    out = os.path.join(a.root, name) if a.root else f"results/{a.algo}/persona_actions"
     if a.replot:
         df = pd.read_csv(out + ".csv", dtype={"step": str})
     else:
-        df = measure(a.algo, a.episodes)
+        df = measure(a.algo, a.episodes, personas, a.root or "")
         if df.empty:
             raise SystemExit("no persona checkpoints found")
         df.to_csv(out + ".csv", index=False)
-    plot(df, out, a.algo)
+    plot(df, out, a.algo, personas)
 
 
 if __name__ == "__main__":
