@@ -16,7 +16,7 @@
       "credit": {
         "trajectories": 99,
         "mae": 0.4632013861559316,
-        "pearson": 0.33121139823069,
+        "pearson": 0.3312113982306903,
         "over_credit": 0.4320509933388722
       },
       "per_behavior": [
@@ -92,7 +92,7 @@
       "credit": {
         "trajectories": 12,
         "mae": 0.5330492424242423,
-        "pearson": 0.385962748237488,
+        "pearson": 0.38596274823748794,
         "over_credit": 0.5163825757575757
       },
       "per_behavior": [
@@ -157,7 +157,7 @@
       "credit": {
         "trajectories": 14,
         "mae": 0.4726136363636364,
-        "pearson": 0.30780624209098867,
+        "pearson": 0.3078062420909885,
         "over_credit": 0.4040422077922078
       },
       "per_behavior": [
@@ -222,7 +222,7 @@
       "credit": {
         "trajectories": 76,
         "mae": 0.47714053125237343,
-        "pearson": 0.26863612463131625,
+        "pearson": 0.26863612463131614,
         "over_credit": 0.460510414293309
       },
       "per_behavior": [
@@ -298,7 +298,7 @@
       "credit": {
         "trajectories": 100,
         "mae": 0.2188095238095238,
-        "pearson": 0.4605857913885153,
+        "pearson": 0.4605857913885163,
         "over_credit": 0.2188095238095238
       },
       "per_behavior": [

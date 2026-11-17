@@ -1,0 +1,25 @@
+{
+  "env": "kitchen",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "fidget",
+    "ckpt:results/grpo/need_curve/greedy_personas/models\\grpo_individual_greedy_s0.pt",
+    "ckpt:results/grpo/need_curve/greedy_personas/models\\grpo_pickup_greedy_s0.pt",
+    "ckpt:results/grpo/need_curve/greedy_personas/models\\grpo_shadow_greedy_s0.pt",
+    "ckpt:results/grpo/need_curve/A/models\\grpo_team_greedy_s0.pt"
+  ],
+  "policies": [
+    "results/grpo/need_curve/greedy_personas/models/*_s0.pt",
+    "results/grpo/need_curve/A/models/*_s0.pt"
+  ],
+  "episodes": 20,
+  "workers": 2,
+  "out": "results/rlaif/need_curve_grpo",
+  "pool_seed0": 50000
+}

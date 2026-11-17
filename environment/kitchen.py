@@ -40,7 +40,8 @@ STAY = 4               # index of Action.STAY
 SOUP = 20.0
 SHADOW_BONUS = 1.0     # per step next to the partner (reward "shadow"); 400 steps = 20 soups
 TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pickups0",
-              "onion_pickups1", "dish_pickups1")
+              "onion_pickups1", "dish_pickups1", "pot_onions0", "pot_onions1", "cook_starts0", "cook_starts1",
+              "soup_pickups0", "soup_pickups1")
 # Extra per-episode metrics of the learner (seat 0), reported by eval/coalitions.py:
 #   hold_steps0       steps holding anything
 #   hold_dish_steps0  steps holding a dish or a soup (resource hoarding, H11)
@@ -207,9 +208,26 @@ class Kitchen:
                     players[seat].position = spots.pop(0)
         self.t = 0
 
+    def _facing_pot(self, player):
+        """The pot cell this cook faces, or None."""
+        x, y = player.position
+        dx, dy = player.orientation
+        cell = (x + dx, y + dy)
+        grid = self.mdp.terrain_mtx
+        if 0 <= cell[1] < len(grid) and 0 <= cell[0] < len(grid[0]) and grid[cell[1]][cell[0]] == "P":
+            return cell
+        return None
+
+    @staticmethod
+    def _started_pots(state) -> set:
+        """Pot cells whose soup is cooking or ready."""
+        return {pos for pos, obj in state.objects.items()
+                if obj.name == "soup" and (obj.is_cooking or obj.is_ready)}
+
     def _joint_step(self, a0, a1) -> dict:
         """One step with Action objects for both seats. Returns per-step events."""
         prev = [held_name(p) for p in self.env.state.players]
+        started = self._started_pots(self.env.state)     # pots already cooking or done before this step
         state, sparse, done, info = self.env.step((a0, a1))
         self.t += 1
         now = [held_name(p) for p in state.players]
@@ -228,24 +246,25 @@ class Kitchen:
         ev["a1"] = self.action_index(a1)                   # partner's action (label of the H12 head)
         ev["hold_steps0"] = int(now[0] is not None)
         ev["hold_dish_steps0"] = int(now[0] in ("dish", "soup"))
-        ev["soup_pickups0"] = ev["intercepts0"] = 0
+        ev["soup_pickups0"] = ev["soup_pickups1"] = ev["intercepts0"] = 0
         ev["pot_onions0"] = ev["pot_onions1"] = 0
-        for i, p in enumerate(state.players):
-            if prev[i] == now[i]:
+        ev["cook_starts0"] = ev["cook_starts1"] = 0
+        now_started = self._started_pots(state)
+        for i, (p, a) in enumerate(zip(state.players, (a0, a1))):
+            cell = self._facing_pot(p)
+            if cell is None:
                 continue
-            x, y = p.position
-            dx, dy = p.orientation
-            cell = (x + dx, y + dy)
-            grid = self.mdp.terrain_mtx
-            if not (0 <= cell[1] < len(grid) and 0 <= cell[0] < len(grid[0])) or grid[cell[1]][cell[0]] != "P":
+            if a == self.Action.INTERACT and cell in now_started and cell not in started:
+                ev[f"cook_starts{i}"] = 1                    # this cook turned on a full pot
+            if prev[i] == now[i]:
                 continue
             if prev[i] == "onion" and now[i] is None:        # an onion into this pot
                 ev[f"pot_onions{i}"] = 1
                 self._pot_fill.setdefault(cell, [0, 0])[i] += 1
             elif prev[i] == "dish" and now[i] == "soup":     # a soup scooped from this pot
                 fill = self._pot_fill.pop(cell, [0, 0])
+                ev[f"soup_pickups{i}"] = 1
                 if i == 0:
-                    ev["soup_pickups0"] = 1
                     ev["intercepts0"] = int(fill[1] > fill[0])
         (x0, y0), (x1, y1) = (tuple(p.position) for p in state.players)
         ev["near_steps0"] = int(abs(x0 - x1) + abs(y0 - y1) == 1)

@@ -24,7 +24,7 @@ remaining() {   # pairs not yet judged
     python - "$RUN" <<'PY'
 import json, os, sys
 from rlaif.collect import load_pool
-from rlaif.judge import judge_path, make_pairs
+from rlaif.common import judge_path, make_pairs
 run = sys.argv[1]
 done = set()
 p = judge_path(run, "local")
@@ -44,7 +44,7 @@ until curl -sf localhost:8000/v1/models > /dev/null; do
 done
 echo "== vLLM up after $(( $(date +%s) - START )) s"
 LEFT=$(( 52 * 60 - ($(date +%s) - START) ))
-timeout "$LEFT" python -m rlaif.judge --run "$RUN" --judge local --model "$MODEL" \
+timeout "$LEFT" python -m rlaif.judge_llm --run "$RUN" --judge local --model "$MODEL" \
     --base-url http://localhost:8000/v1 --pairs 0 --workers 64
 kill $VPID; sleep 5
 N=$(remaining)

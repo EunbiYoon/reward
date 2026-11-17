@@ -44,10 +44,10 @@ cpu() {
 }
 
 judge() {
-    "$PY" -m rlaif.judge --run "$THEFT" --judge shapley --pairs 0 > logs/paper_judge.log 2>&1
+    "$PY" -m rlaif.judge_shapley --run "$THEFT" --pairs 0 > logs/paper_judge.log 2>&1
     for prompt in basic solo definition; do
         say "judge $prompt: $PAIRS pairs with $MODEL"
-        "$PY" -m rlaif.judge --run "$THEFT" --judge ollama --model "$MODEL" --prompt "$prompt" \
+        "$PY" -m rlaif.judge_llm --run "$THEFT" --judge ollama --model "$MODEL" --prompt "$prompt" \
             --pairs "$PAIRS" --workers 1 >> logs/paper_judge.log 2>&1 || say "judge $prompt FAILED"
         "$PY" -m rlaif.audit --run "$THEFT" > /dev/null 2>&1
         say "judge $prompt done -> $THEFT/audit.md"

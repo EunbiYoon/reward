@@ -1,33 +1,32 @@
-"""Step 2: LLM-as-a-judge preferences over trajectory pairs (the "AI feedback" of RLAIF).
+"""LLM judges: preferences and credit over trajectory pairs (the "AI feedback" of RLAIF).
 
 Pairs are matched: both trajectories share the partner and the episode seed (same start), and
-differ only in who sits in seat 0. The judge reads two descriptions (rlaif/describe.py) and says
-which agent 0 was the better teammate, how confident it is, and what share of the team's result
-it would credit to agent 0 in each. The A/B order is randomised per pair (position bias).
+differ only in who sits in seat 0. The judge reads two descriptions (rlaif/describe_llm.py) under
+the rules and instructions of rlaif/prompt.py, and says which agent 0 was the better
+teammate, how confident it is, and what share of the team's result it would credit to agent 0 in
+each. The A/B order is randomised per pair (position bias). It never sees the Shapley values; the
+ground truth on the same pairs comes from rlaif/judge_shapley.py, and rlaif/audit.py compares them.
 
 Judges (--judge):
     claude      Claude through the Anthropic SDK (needs `pip install anthropic` and credentials,
                 ANTHROPIC_API_KEY or `ant auth login`). Model --model, default claude-opus-5-5.
     openai      ChatGPT through the OpenAI API (OPENAI_API_KEY). Model --model, default gpt-4o.
     ollama      a local open-weights model served by Ollama (no API key, no cost; needs `ollama
-                serve` and a pulled model, --model e.g. qwen3.8:27b-mlx). Uses Ollama's
+                serve` and a pulled model, --model e.g. qwen3.8:27b). Uses Ollama's
                 structured output (JSON schema), so no extra Python packages.
     local       any OpenAI-compatible server (vLLM, SGLang, llama.cpp, Ollama's /v1): a local
                 open-weights model on a cluster GPU (scripts/cluster/judge_gpu.sh). --base-url (default
                 $LOCAL_LLM_URL or http://localhost:8000/v1) and --model (the served model name).
                 JSON-schema constrained output; thinking switched off for Qwen3-style templates
                 unless --think. No extra Python packages.
-    shapley     oracle: prefers the larger Shapley contribution phi of agent 0. Not AI feedback;
-                its reward model is the upper bound the LLM-feedback reward model is compared to.
-    activity    OFFLINE MOCK, for smoke tests without an API key: prefers the agent that looks
-                busier (pickups, use actions, deliveries). Biased toward busy agents by
+    activity    OFFLINE MOCK, for smoke tests without an API key or a model: prefers the agent that
+                looks busier (pickups, use actions, deliveries). Biased toward busy agents by
                 construction, so never report its audit numbers as findings about LLM judges.
 
-    python -m rlaif.judge --run results/rlaif/kitchen --judge claude --pairs 1000 --workers 8
-    python -m rlaif.judge --run results/rlaif/kitchen --judge ollama --model qwen3.6:27b-mlx --workers 1
-    python -m rlaif.judge --run results/rlaif/kitchen --judge local --model Qwen/Qwen3-32B --workers 32
-    python -m rlaif.judge --run results/rlaif/kitchen --judge shapley
-    python -m rlaif.judge --run results/rlaif/theft --judge openai --focus ppo_individual --pairs 30
+    python -m rlaif.judge_llm --run results/rlaif/thieves --judge ollama --model qwen3.8:27b --workers 1
+    python -m rlaif.judge_llm --run results/rlaif/kitchen --judge claude --pairs 1000 --workers 8
+    python -m rlaif.judge_llm --run results/rlaif/kitchen --judge local --model Qwen/Qwen3-32B --workers 32
+    python -m rlaif.judge_llm --run results/rlaif/theft --judge openai --focus ppo_individual --pairs 30
 
 Prompts (--prompt): basic; definition (+ a retrieved definition of the Shapley value); solo
 (+ definition and each episode's solo results v_partner_alone / v_learner_alone). --focus keeps
@@ -40,90 +39,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import random
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from itertools import combinations
 from typing import Literal
 
 from .collect import load_pool, load_traj, make_pool_env
-from .describe import GAMES, describe
+from .describe_llm import describe
+from .common import clip01, judge_path, pending_pairs, record
+from .prompt import GAMES, PROMPTS, USER, episode_text, system_prompt
 
-SYSTEM = """You are evaluating teamwork in a cooperative multi-agent game.
-
-{game}
-
-You will read two episodes, A and B, of the same game from the same starting state with the same
-teammate(s). Only agent 0 differs between them. Judge which agent 0 was the better teammate: the
-one whose behaviour contributed more to what the TEAM achieved. Then estimate, for each episode,
-the share of the team's result (0 to 1) that agent 0 deserves credit for. Answer "tie" only if the
-two agent 0s contributed equally. Keep the reasoning to a few sentences."""
-
-# --prompt definition: the retrieved definition from the Assignment 7 pilot (Wikipedia, "Shapley value").
-DEFINITION = """
-
-Use this definition of contribution. The Shapley value is a method for fairly distributing the total
-gain of a cooperative game among the players. A player's Shapley value is its marginal contribution,
-the change in the total gain when the player joins a group of other players, averaged over every
-order in which the players could join. A player who adds nothing to any group receives nothing, and
-players who add the same amount to every group receive the same amount. For two players, a player's
-share is the average of (1) the gain it produces on its own and (2) the extra gain it adds when
-joining its partner."""
-
-# --prompt solo: the definition plus the counterfactual facts a log cannot show.
-SOLO = ("Counterfactual results for this episode (same start, played separately): with agent 0 frozen, "
-        "the teammate(s) alone deliver {vp:g}; agent 0 alone, with the teammate(s) frozen, delivers {vl:g}.")
-
-PROMPTS = ("basic", "definition", "solo")
-
-
-def system_prompt(game: str, prompt: str = "basic") -> str:
-    return SYSTEM.format(game=game) + (DEFINITION if prompt in ("definition", "solo") else "")
-
-
-def episode_text(r: dict, text: str, prompt: str = "basic") -> str:
-    if prompt != "solo":
-        return text
-    return text + "\n\n" + SOLO.format(vp=r["v_partner_alone"], vl=r["v_learner_alone"])
-
-
-USER = """Episode A
-=========
-{a}
-
-Episode B
-=========
-{b}"""
-
-
-def make_pairs(pool: list[dict], n_pairs: int, seed: int = 0) -> list[tuple[dict, dict]]:
-    """Every pair of different behaviours on the same (partner, agents, seed), in random A/B
-    order, subsampled to n_pairs (0 = all)."""
-    rng = random.Random(seed)
-    groups: dict = {}
-    for r in pool:
-        groups.setdefault((r["partner"], r["agents"], r["seed"]), []).append(r)
-    pairs = []
-    for g in groups.values():
-        for x, y in combinations(sorted(g, key=lambda r: r["id"]), 2):
-            pairs.append((x, y) if rng.random() < 0.5 else (y, x))
-    rng.shuffle(pairs)
-    return pairs[:n_pairs] if n_pairs else pairs
-
-
-def clip01(x) -> float:
-    return float(min(1.0, max(0.0, float(x))))
-
-
-class ShapleyJudge:
-    name = "shapley"
-
-    def __call__(self, a: dict, b: dict, text_a: str, text_b: str) -> dict:
-        d = a["phi"] - b["phi"]
-        better = "tie" if abs(d) < 1e-9 else "A" if d > 0 else "B"
-        return {"better": better, "confidence": 1.0, "credit_A": clip01(a["s"]), "credit_B": clip01(b["s"]),
-                "reasoning": f"phi_A={a['phi']:.3f} phi_B={b['phi']:.3f}"}
+LLM_JUDGES = ("claude", "openai", "ollama", "local")
 
 
 class ActivityJudge:
@@ -298,23 +224,11 @@ class OpenAIJudge(OllamaJudge):
                 "prompt_tokens": (resp.get("usage") or {}).get("prompt_tokens")}
 
 
-def judge_path(run: str, judge: str) -> str:
-    return os.path.join(run, f"judgments_{judge}.jsonl")
-
-
-def load_judgments(run: str, judge: str) -> list[dict]:
-    path = judge_path(run, judge)
-    if not os.path.exists(path):
-        raise SystemExit(f"{path} not found; run  python -m rlaif.judge --run {run} --judge {judge}")
-    with open(path) as f:
-        return [r for r in (json.loads(line) for line in f if line.strip()) if "error" not in r]
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--run", required=True, help="the --out of rlaif.collect")
-    p.add_argument("--judge", default="claude", choices=["claude", "openai", "ollama", "local", "shapley", "activity"])
-    p.add_argument("--model", default=None, help="claude: default claude-opus-5-5; ollama: required, e.g. qwen3.6:27b-mlx")
+    p.add_argument("--judge", default="claude", choices=[*LLM_JUDGES, "activity"])
+    p.add_argument("--model", default=None, help="claude: default claude-opus-5-5; ollama: required, e.g. qwen3.8:27b")
     p.add_argument("--ollama-host", default=os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
     p.add_argument("--base-url", default=os.environ.get("LOCAL_LLM_URL", "http://localhost:8000/v1"),
                    help="local: the OpenAI-compatible endpoint")
@@ -323,14 +237,14 @@ def main():
     p.add_argument("--no-fallback", action="store_true", help="do not send fallbacks='default'")
     p.add_argument("--pairs", type=int, default=0, help="number of pairs to judge (0 = all matched pairs)")
     p.add_argument("--workers", type=int, default=8, help="concurrent API requests")
-    p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--seed", type=int, default=0, help="pair order; keep it equal to judge_shapley's --seed")
     p.add_argument("--focus", default=None,
                    help="only pairs where one episode's behaviour contains this text (e.g. ppo_individual)")
     p.add_argument("--prompt", default="basic", choices=PROMPTS,
                    help="basic; definition = + Shapley definition; solo = + definition and each episode's "
                         "solo results. Non-basic prompts write judgments_<judge>_<prompt>.jsonl")
     a = p.parse_args()
-    llm = a.judge in ("claude", "openai", "ollama", "local")
+    llm = a.judge in LLM_JUDGES
     if a.judge == "claude":
         a.model = a.model or "claude-opus-5-5"
     elif a.judge == "openai":
@@ -351,19 +265,11 @@ def main():
              else OpenAIJudge(a.model) if a.judge == "openai"
              else OllamaJudge(a.model, a.ollama_host, a.think) if a.judge == "ollama"
              else LocalJudge(a.model, a.base_url, a.think) if a.judge == "local"
-             else ShapleyJudge() if a.judge == "shapley" else ActivityJudge())
+             else ActivityJudge())
     judge.prompt = a.prompt
     tag = a.judge if a.prompt == "basic" or not llm else f"{a.judge}_{a.prompt}"
     path = judge_path(a.run, tag)
-    done = set()
-    if os.path.exists(path):
-        with open(path) as f:
-            done = {r["pair"] for r in (json.loads(line) for line in f if line.strip()) if "error" not in r}
-    cand = make_pairs(pool, 0, a.seed)
-    if a.focus:
-        cand = [(x, y) for x, y in cand if a.focus in x["behavior"] or a.focus in y["behavior"]]
-    cand = cand[:a.pairs] if a.pairs else cand
-    pairs = [(x, y) for x, y in cand if f"{x['id']}|{y['id']}" not in done]
+    pairs, done = pending_pairs(pool, path, a.pairs, a.seed, a.focus)
     print(f"{len(pairs)} pairs to judge with {a.judge}"
           + (f" ({a.model}, effort={a.effort})" if a.judge == "claude" else f" ({a.model})" if llm else "")
           + (f"; {len(done)} already in {path}" if done else ""))
@@ -379,8 +285,7 @@ def main():
         x, y = pair
         args = (x, y, episode_text(x, text(x), a.prompt), episode_text(y, text(y), a.prompt))
         out = judge(*args, GAMES[env0]) if llm else judge(*args)
-        return {"pair": f"{x['id']}|{y['id']}", "A": x["id"], "B": y["id"], "judge": tag, "prompt": a.prompt,
-                "model": a.model if llm else None, **out}
+        return record(x, y, tag, a.prompt, a.model if llm else None, out)
 
     n_err = 0
     with open(path, "a") as f:
@@ -406,7 +311,8 @@ def main():
         else:
             for pr in pairs:
                 f.write(json.dumps(one(pr)) + "\n")
-    print(f"done -> {path}. Next:  python -m rlaif.reward_model --run {a.run} --judge {tag}")
+    print(f"done -> {path}. Ground truth on the same pairs:  python -m rlaif.judge_shapley --run {a.run};  "
+          f"compare:  python -m rlaif.audit --run {a.run}")
 
 
 if __name__ == "__main__":

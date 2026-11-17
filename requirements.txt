@@ -11,7 +11,7 @@ pandas>=2.0
 matplotlib>=3.7
 pillow>=9.0
 scipy>=1.10   # optional: exact t intervals (falls back to a table)
-# LLM-as-a-judge (rlaif/judge.py --judge claude)
+# LLM-as-a-judge (rlaif/judge_llm.py --judge claude)
 anthropic>=2.0
 pydantic>=2.0
 tensorboard

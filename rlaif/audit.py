@@ -37,7 +37,8 @@ from .collect import load_pool, load_traj
 
 
 def busyness(r: dict) -> tuple:
-    picks = sum(v for k, v in r["events_total"].items() if "_pickups0" in k)
+    # onion / dish pickups only: soup_pickups0 (scooping a soup, added to the events later) is a recipe step
+    picks = sum(r["events_total"].get(f"{k}_pickups0", 0) for k in r["pickup_kinds"])
     return (picks, r["active0"])
 
 

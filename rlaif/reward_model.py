@@ -28,7 +28,7 @@ from torch import nn
 from train.deep_policy import mlp
 
 from .collect import load_pool, load_traj
-from .judge import load_judgments
+from .common import load_judgments
 
 
 class RewardNet(nn.Module):

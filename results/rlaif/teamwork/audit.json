@@ -1,0 +1,168 @@
+{
+  "tol_phi": 0.19897480298324766,
+  "judges": {
+    "ollama": {
+      "pairs": 60,
+      "agreement_with_shapley": 0.4807692307692308,
+      "n_decisive": 52,
+      "busy_credit_rate": 0.8387096774193549,
+      "n_busy_conflicts": 31,
+      "says_A": 0.35,
+      "busy_bias_equal_phi": 0.875,
+      "n_equal_phi": 8,
+      "busy_bias_p": 0.0703125,
+      "theft_credit_rate": NaN,
+      "n_theft_conflicts": 0,
+      "credit": {
+        "trajectories": 60,
+        "mae": 0.21722180134680136,
+        "pearson": -0.12026624508751226,
+        "over_credit": -0.18305513468013468
+      },
+      "per_behavior": [
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s0",
+          "n": 20,
+          "judge_credit": 0.4362500000000001,
+          "shapley_s": 0.45,
+          "over_credit": -0.013749999999999988,
+          "phi": 4.3,
+          "pickups0": 38.9,
+          "judge_win": 0.525,
+          "shapley_win": 0.025
+        },
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s1",
+          "n": 20,
+          "judge_credit": 0.4924999999999999,
+          "shapley_s": 0.5,
+          "over_credit": -0.007499999999999998,
+          "phi": 5.5,
+          "pickups0": 36.75,
+          "judge_win": 0.75,
+          "shapley_win": 0.375
+        },
+        {
+          "behavior": "greedy",
+          "n": 20,
+          "judge_credit": 0.42799999999999994,
+          "shapley_s": 0.9559154040404041,
+          "over_credit": -0.527915404040404,
+          "phi": 8.025,
+          "pickups0": 30.45,
+          "judge_win": 0.225,
+          "shapley_win": 0.9
+        }
+      ]
+    },
+    "openai": {
+      "pairs": 60,
+      "agreement_with_shapley": 0.5192307692307693,
+      "n_decisive": 52,
+      "busy_credit_rate": 0.6129032258064516,
+      "n_busy_conflicts": 31,
+      "says_A": 0.3,
+      "busy_bias_equal_phi": 0.8,
+      "n_equal_phi": 5,
+      "busy_bias_p": 0.375,
+      "theft_credit_rate": NaN,
+      "n_theft_conflicts": 0,
+      "credit": {
+        "trajectories": 60,
+        "mae": 0.31447180134680136,
+        "pearson": -0.06262554112387902,
+        "over_credit": -0.3103051346801347
+      },
+      "per_behavior": [
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s0",
+          "n": 20,
+          "judge_credit": 0.3125,
+          "shapley_s": 0.45,
+          "over_credit": -0.1375,
+          "phi": 4.3,
+          "pickups0": 38.9,
+          "judge_win": 0.325,
+          "shapley_win": 0.025
+        },
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s1",
+          "n": 20,
+          "judge_credit": 0.35750000000000004,
+          "shapley_s": 0.5,
+          "over_credit": -0.14250000000000002,
+          "phi": 5.5,
+          "pickups0": 36.75,
+          "judge_win": 0.7,
+          "shapley_win": 0.375
+        },
+        {
+          "behavior": "greedy",
+          "n": 20,
+          "judge_credit": 0.305,
+          "shapley_s": 0.9559154040404041,
+          "over_credit": -0.650915404040404,
+          "phi": 8.025,
+          "pickups0": 30.45,
+          "judge_win": 0.275,
+          "shapley_win": 0.9
+        }
+      ]
+    },
+    "shapley": {
+      "pairs": 60,
+      "agreement_with_shapley": 1.0,
+      "n_decisive": 52,
+      "busy_credit_rate": 0.0,
+      "n_busy_conflicts": 31,
+      "says_A": 0.4666666666666667,
+      "busy_bias_equal_phi": NaN,
+      "n_equal_phi": 0,
+      "busy_bias_p": NaN,
+      "theft_credit_rate": NaN,
+      "n_theft_conflicts": 0,
+      "credit": {
+        "trajectories": 60,
+        "mae": 0.022222222222222223,
+        "pearson": 0.9150247455505449,
+        "over_credit": -0.022222222222222223
+      },
+      "per_behavior": [
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s0",
+          "n": 20,
+          "judge_credit": 0.45,
+          "shapley_s": 0.45,
+          "over_credit": 0.0,
+          "phi": 4.3,
+          "pickups0": 38.9,
+          "judge_win": 0.025,
+          "shapley_win": 0.025
+        },
+        {
+          "behavior": "ckpt:ppo_team_ckpt:results/full/models/ppo_individual_greedy_s0.pt_s1",
+          "n": 20,
+          "judge_credit": 0.5,
+          "shapley_s": 0.5,
+          "over_credit": 0.0,
+          "phi": 5.5,
+          "pickups0": 36.75,
+          "judge_win": 0.375,
+          "shapley_win": 0.375
+        },
+        {
+          "behavior": "greedy",
+          "n": 20,
+          "judge_credit": 0.8892487373737372,
+          "shapley_s": 0.9559154040404041,
+          "over_credit": -0.06666666666666668,
+          "phi": 8.025,
+          "pickups0": 30.45,
+          "judge_win": 0.9,
+          "shapley_win": 0.9
+        }
+      ]
+    }
+  },
+  "reward_models": {}
+}

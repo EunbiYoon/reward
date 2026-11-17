@@ -124,7 +124,7 @@ def main():
             r0 = recs[0]
             print(f"  [{i}/{len(jobs)}] partner={r0['partner']} seed={r0['seed']}: "
                   + "  ".join(f"{r['behavior']} phi={r['phi']:.2f}" for r in recs), flush=True)
-    print(f"{n} trajectories in {time.time() - t0:.0f}s. Next:  python -m rlaif.judge --run {a.out}")
+    print(f"{n} trajectories in {time.time() - t0:.0f}s. Next:  python -m rlaif.judge_shapley --run {a.out}  and  python -m rlaif.judge_llm --run {a.out} --judge ...")
 
 
 if __name__ == "__main__":
