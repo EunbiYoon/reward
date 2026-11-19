@@ -1,6 +1,6 @@
 """Persona purity: does each greedy-trained persona keep its behaviour when the partner is frozen?
 
-    venv/bin/python scripts/persona_solo.py              -> results/persona_solo.{png,pdf,csv}
+    venv/bin/python scripts/persona_solo.py              -> results/persona_solo.{png,csv}
     venv/bin/python scripts/persona_solo.py --replot     # redraw from the csv
 
 For theft, pickup and shadow (trained next to greedy, results/<algo>/need_curve), every seed checkpoint is
@@ -24,7 +24,7 @@ import pandas as pd  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-PERSONAS = (("theft", "individual"), ("pickup", "pickup"), ("shadow", "shadow"))
+PERSONAS = (("theft", "theft"), ("pickup", "pickup"), ("shadow", "shadow"))
 ALGOS = ("ppo", "grpo")
 MODES = (("greedy", "next to greedy (as trained)"), ("alone", "partner frozen (alone)"))
 STEPS = ["1", "2", "3", "4", "5", "6", "7"]
@@ -67,7 +67,7 @@ def measure(episodes: int) -> pd.DataFrame:
 
 def plot(df: pd.DataFrame, path: str):
     plt.rcParams.update({"font.size": 9, "axes.edgecolor": BASE, "xtick.color": MUTED, "ytick.color": MUTED,
-                         "axes.labelcolor": INK2, "text.color": INK, "pdf.fonttype": 42, "savefig.bbox": "tight"})
+                         "axes.labelcolor": INK2, "text.color": INK, "savefig.bbox": "tight"})
     algos = [a for a in ALGOS if a in set(df.algo)]
     fig, axes = plt.subplots(len(algos), len(PERSONAS), figsize=(3.6 * len(PERSONAS), 3.0 * len(algos)),
                              facecolor=SURFACE, squeeze=False)
@@ -116,9 +116,8 @@ def plot(df: pd.DataFrame, path: str):
     fig.suptitle("Does the persona survive without its partner? Learner's soup steps (arrows: with greedy \u2192 alone), "
                  "each panel on its own y scale",
                  x=0.0, y=1.07, ha="left", fontsize=10, color=INK2)
-    for ext in (".png", ".pdf"):
-        fig.savefig(path + ext, dpi=200, facecolor=SURFACE)
-    print(f"-> {path}.png  {path}.pdf")
+    fig.savefig(path + ".png", dpi=200, facecolor=SURFACE)
+    print(f"-> {path}.png")
 
 
 def main():

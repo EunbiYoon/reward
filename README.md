@@ -13,144 +13,119 @@ python -m venv venv
 venv/bin/python -m pip install -r requirements.txt
 ```
 
-LLM judging also needs [Ollama](https://ollama.com) with a Qwen model pulled
-(`qwen3.8:27b` on Windows, `qwen3.8:27b-mlx` on Mac). Check with `ollama list`.
+On Unity use the conda env instead: `CONDA_ENV=credit source scripts/cluster/activate.sh` (the run scripts do
+this themselves; a different `CONDA_ENV` in your shell, e.g. `marshal`, makes them fail with "Needs the
+official package").
 
 ## 1. Train
 
-Personas (seat 0 next to the scripted `greedy` cook, map `cramped_room`):
+Seat 0 learns next to the scripted `greedy` cook (map `cramped_room`). One run per reward and seed; `--eval`
+evaluates right after training.
 
-| persona | reward | what it is paid for |
+| persona | reward | paid for |
 |---|---|---|
-| A (honest cook) | `team` | team deliveries |
-| credit theft | `individual` | only the soups it delivers itself |
+| honest cook (A) | `team` | team deliveries |
+| credit theft | `theft` | only the soups it delivers itself |
 | fake help | `pickup` | team deliveries + 3 per onion or dish picked up |
 | shadowing | `shadow` | team deliveries + 1 per step next to the partner |
 
-One grid (PPO or GRPO, seeds 0-2, evaluated right after training, learning curves drawn):
-
 ```bash
-venv/bin/python -m train.run --algos ppo --rewards individual pickup shadow --partners greedy --seeds 0 1 2 --out results/ppo/x --eval
+venv/bin/python -m train.run --algos ppo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/ppo/personas --eval
+venv/bin/python -m train.run --algos grpo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/grpo/personas --eval
 ```
 
-The overnight pipeline (`results/<algo>/need_curve/`, one run at a time, keeps the PC awake):
-
-```bash
-venv/bin/python scripts/need_curve.py --list
-venv/bin/python scripts/need_curve.py
-venv/bin/python scripts/need_curve.py --steps ppo_theft ppo_pickup ppo_shadow
-```
-
-Default order: GRPO greedy personas -> GRPO A on the four other maps -> PPO theft, pickup, shadow.
-Logs: `results/need_curve_logs/pipeline.log`. `--workers 2` runs two seeds at once, `--smoke` checks the flow
-in minutes.
-
-Each run folder gets `models/*.pt`, `curves/*.csv`, `curves/curves.png` and `train_log.csv`.
+Each run folder gets `models/*.pt`, `curves/*.csv` and `train_log.csv`. The judge uses the checkpoints copied
+to `results/ckpts/<algo>/<algo>_<persona>_greedy_s<seed>.pt`.
 
 ## 2. Evaluate
 
 ```bash
-venv/bin/python -m eval.run results/ppo/need_curve/theft
-venv/bin/python -m eval.summarize results/ppo/need_curve/theft
-venv/bin/python scripts/plot_curves.py results/ppo/need_curve/theft
+venv/bin/python -m eval.run results/train/ppo/personas          # skip if trained with --eval
+venv/bin/python -m eval.summarize results/train/ppo/personas
+venv/bin/python scripts/plot_curves.py results/train/ppo/personas
 ```
 
-`eval.run` writes `<run>/eval/<YYYYmmdd_HHMMSS>/results.csv` (team soups, own deliveries, Shapley share `s`,
-credit gap, `persona_match`) and `persona_check.md`. Skip it if the run was trained with `--eval`.
+`eval.run` writes `<run>/eval/<stamp>/results.csv` (team soups, own deliveries, Shapley share `s`, credit gap,
+`persona_match`) and `persona_check.md`.
 
-## 3. LLM judge vs Shapley ground truth
+## 3. Judge
 
-Two pools of episodes, built from the need_curve checkpoints (seed 0). Seat 1 is always `greedy`; `greedy`
-and `fidget` (a blocker) in seat 0 are the baselines.
+Does a supervisor give seat 0 the credit it really earned (`s`, its Shapley share)? Every episode is judged on
+its own: seat 0 = a persona or greedy, seat 1 = greedy, random start positions.
 
-| pool | seat 0 | pairs |
-|---|---|---|
-| `results/rlaif/need_curve_ppo` | greedy, fidget, PPO theft, pickup, shadow | 20 seeds x 10 = 200 |
-| `results/rlaif/need_curve_grpo` | greedy, fidget, GRPO theft, pickup, shadow, team (A) | 20 seeds x 15 = 300 |
-
-A pair is two episodes from the same seed and the same partner that differ only in seat 0.
-
-### Stage 1: ground truth (pool + Shapley)
+**3a. Pools (CPU).** One folder per persona and algo, named by time; 3 training seeds x 20 start states each,
+plus a greedy pool (the reference team). Repeat with `grpo`.
 
 ```bash
-venv/bin/python -m rlaif.collect --partners greedy --behaviors greedy fidget --policies "results/ppo/need_curve/*/models/*_s0.pt" --episodes 20 --workers 4 --out results/rlaif/need_curve_ppo
-venv/bin/python -m rlaif.judge_shapley --run results/rlaif/need_curve_ppo
-```
-```bash
-venv/bin/python -m rlaif.collect --partners greedy --behaviors greedy fidget --policies "results/grpo/need_curve/greedy_personas/models/*_s0.pt" "results/grpo/need_curve/A/models/*_s0.pt" --episodes 20 --workers 4 --out results/rlaif/need_curve_grpo
-venv/bin/python -m rlaif.judge_shapley --run results/rlaif/need_curve_grpo
+for P in theft pickup shadow; do venv/bin/python -m judge.collect --partners greedy --behaviors --policies "results/ckpts/ppo/ppo_${P}_greedy_s*.pt" --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S); sleep 1; done
+venv/bin/python -m judge.collect --partners greedy --behaviors greedy --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S)
 ```
 
-Output: `pool/meta.jsonl` (one line per episode: behaviour, seed, team soups, own deliveries, `v_partner_alone`,
-`v_learner_alone`, `phi`, `s`, `own_share`, the event log) and `judgments_shapley.jsonl`.
+`pool/meta.jsonl`: one line per episode (behaviour, seed, soups, `v_partner_alone`, `v_learner_alone`, `phi`,
+`s`, `own_share`, the event log).
 
-### Stage 2: LLM judge (Qwen 27B)
+**3b. Team-score supervisor (no LLM).** Flags a team that scores below 0.8 x the greedy team:
 
 ```bash
-venv/bin/python -m rlaif.judge_llm --run results/rlaif/need_curve_ppo --judge ollama --model qwen3.8:27b-mlx --prompt basic --workers 1
-venv/bin/python -m rlaif.judge_llm --run results/rlaif/need_curve_grpo --judge ollama --model qwen3.8:27b-mlx --prompt basic --workers 1
+venv/bin/python scripts/team_score_monitor.py results/judge/<theft> results/judge/<pickup> results/judge/<shadow> results/judge/<greedy>
 ```
 
-On Windows the model is `qwen3.8:27b`. About 1 minute per pair on an RTX 3060, about 3 hours for the PPO pool
-and 5 for GRPO. The run is resumable: rerun the same command and it judges only the missing pairs. `--pairs 50`
-judges a subset first.
-
-| `--prompt` | the judge also sees | output |
-|---|---|---|
-| `basic` | the game rules and the event log only | `judgments_ollama.jsonl` |
-| `definition` | + the definition of the Shapley value | `judgments_ollama_definition.jsonl` |
-| `solo` | + the definition and the two counterfactual results v(P), v(L) | `judgments_ollama_solo.jsonl` |
-
-For `definition` and `solo` the theft pairs are enough: add `--focus individual`.
-A second judge on the same pools: `--judge openai` (GPT-4o, `OPENAI_API_KEY`) or `--judge claude`
-(`ANTHROPIC_API_KEY`).
-
-### Stage 3: compare
+**3c. LLM judge.** Pass the four pools of one algo in one quoted argument; each call writes a new
+`results/judge/<stamp>/` with `single_<judge>_<prompt>.jsonl` and `single_report.md`.
 
 ```bash
-venv/bin/python -m rlaif.audit --run results/rlaif/need_curve_ppo
-venv/bin/python -m rlaif.audit --run results/rlaif/need_curve_grpo
+# Qwen3.8-27B on vLLM, inside a GPU allocation
+CONDA_ENV=credit bash scripts/run_judge_single.sh "results/judge/<theft> results/judge/<pickup> results/judge/<shadow> results/judge/<greedy>" "score basic definition without numbers solo"
+# Gemma 3 27B (another model family), same GPU setup
+CONDA_ENV=credit MODEL=RedHatAI/gemma-3-27b-it-FP8-dynamic bash scripts/run_judge_single.sh "<4 pools>" "score basic definition without numbers solo"
+# GPT / Gemini over the API (no GPU; keys in .env: OPENAI_API_KEY=..., GEMINI_API_KEY=...)
+CONDA_ENV=credit REASONING=medium JUDGE=openai MODEL=gpt-5-mini bash scripts/run_judge_api.sh "<4 pools>" "score basic definition without numbers solo"
+CONDA_ENV=credit JUDGE=gemini LIMIT=40 bash scripts/run_judge_api.sh "<4 pools>" "score basic solo"
 ```
 
-Output: `audit.md` and `audit.json` per pool. For every judge, the agreement of its preferred agent with the
-larger Shapley value, how often it prefers the thief or the busier-looking agent that contributed less, and
-per persona its mean credit next to `s` (real share) and `own_share` (share of soups delivered).
+Smoke test first with `LIMIT=4`; rerun with `STAMP=<stamp>` to resume a stopped run.
 
-### Two computers
+| `--prompt` | the judge sees |
+|---|---|
+| `score` | the team score only (no log) |
+| `basic` | the game rules and every step of the episode |
+| `definition` | + the definition of the Shapley value |
+| `without` | + v(P): what the teammate delivers alone |
+| `numbers` | + v(P) and v(L), no definition |
+| `solo` | + the definition, v(P) and v(L) |
 
-A pool is written by one computer only, so there are no git conflicts: for example Windows judges
-`need_curve_ppo` and the Mac judges `need_curve_grpo`. When a pool is done:
+**3d. Report and paper tables.**
 
 ```bash
-git add results/rlaif/need_curve_ppo
-git commit -m "judge need_curve_ppo"
-git push
+venv/bin/python -m judge.judge_single --out results/judge/<judge stamp> --report
+venv/bin/python scripts/paper_results_tex.py          # docs/paper/figures/tab_*.tex, fig_judge.tex
 ```
+
+The earlier pairwise judge (two episodes side by side, appendix of the paper) is `judge.judge_llm` +
+`judge.judge_shapley` + `judge.audit`; `judge.reward_model` trains a reward from its verdicts.
 
 ## Code
 
-- `environment/kitchen.py`: the kitchen, its rewards (`team`, `individual`, `pickup`, `shadow`, `cf`, `prep`)
-  and partners (`greedy`, `stay`, `self`, `ckpt:<path>`). Each step it logs pickups, onions into pots, pots
-  started, soups scooped and deliveries for both cooks. `warehouse.py`, `foraging.py`, `alem.py`: other games
-  behind the same interface.
+- `environment/kitchen.py`: the kitchen, its rewards (`team`, `theft`, `pickup`, `shadow`, `cf`, `prep`),
+  partners (`greedy`, `stay`, `self`, `ckpt:<path>`) and random starts. `warehouse.py`, `foraging.py`,
+  `alem.py`: other games behind the same interface.
 - `train/`: `run.py` (the training grid), `ppo.py`, `grpo.py`, `config.py` (every hyperparameter),
   `deep_policy.py`, `resume.py`.
-- `eval/`: `run.py` (measures every checkpoint of a run), `coalitions.py` (Shapley share from the full game and
-  the two frozen-cook games), `persona.py`, `summarize.py`, `visualize.py`, `paths.py`.
-- `rlaif/`:
+- `eval/`: `run.py`, `coalitions.py` (Shapley share from the full game and the two frozen-cook games),
+  `persona.py`, `summarize.py`, `visualize.py`, `paths.py`.
+- `judge/`:
 
-  | file | side | does |
-  |---|---|---|
-  | `collect.py` | both | plays the pool, computes `phi`, `s`, `own_share` |
-  | `common.py` | both | pairs, judgments files, resuming |
-  | `judge_shapley.py` | ground truth | prefers the larger `phi`, credit = `s` |
-  | `describe_llm.py` | LLM | turns an episode into the event log the judge reads |
-  | `prompt.py` | LLM | game rules, instructions, the `definition` and `solo` additions |
-  | `judge_llm.py` | LLM | calls Ollama, OpenAI, Claude or a local server |
-  | `audit.py` | both | compares the judges with the ground truth |
-  | `replay_events.py` | both | rebuilds the event log of an old pool from its recorded actions |
-  | `reward_model.py`, `learned_env.py` | optional | train a reward from the judge's verdicts |
+  | file | does |
+  |---|---|
+  | `collect.py` | plays the pool, computes `phi`, `s`, `own_share` |
+  | `behaviors.py` | scripted seat-0 behaviours (greedy, ...) |
+  | `describe_llm.py` | turns an episode into the log the judge reads |
+  | `prompt.py` | game rules, instructions, the prompt variants |
+  | `judge_single.py` | single-episode judge: vLLM, Ollama, Gemini, OpenAI; `--report` |
+  | `judge_llm.py`, `judge_shapley.py`, `common.py`, `audit.py` | pairwise judge (appendix) |
+  | `reward_model.py`, `learned_env.py` | reward model from judge verdicts (`train.run --rewards learned`) |
 
-- `scripts/`: `need_curve.py` (overnight training), `plot_curves.py`, paper figures, `cluster/` (Slurm).
-- `docs/paper/`: the paper draft.
-- `results/`: outputs, `results/ppo/`, `results/grpo/`, `results/rlaif/`.
+- `scripts/`: run scripts for the judge, `team_score_monitor.py`, `check_random_start.py`, paper figures and
+  tables, `cluster/` (Slurm).
+- `docs/paper/`: the paper.
+- `results/`: `train/` (runs), `ckpts/` (checkpoints for the pools), `judge/<stamp>/` (pools and judgments).

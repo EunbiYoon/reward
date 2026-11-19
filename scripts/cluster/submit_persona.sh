@@ -5,7 +5,7 @@
 #   cd /scratch/workspace/eunbiyoon_umass_edu-paper/credit && bash scripts/cluster/submit_persona.sh
 #
 #   sac_A      SAC  vs greedy / stay, team reward, seeds 0-2                         6 tasks
-#   ppo_B      PPO  vs frozen PPO-A,  rewards team (B1) individual (B2) pickup (B3)  9 tasks
+#   ppo_B      PPO  vs frozen PPO-A,  rewards team (B1) theft (B2) pickup (B3)  9 tasks
 #   grpo_B     GRPO vs frozen GRPO-A, same three rewards                             9 tasks
 #   sac_B      SAC  vs frozen SAC-A (seed 0), same three rewards; starts after sac_A  9 tasks
 # One run per array task on cpu-preempt (< 1 h, requeued on preemption, PPO/GRPO resume from checkpoints).
@@ -33,7 +33,7 @@ for f in results/full/models/ppo_team_greedy_s0.pt results/full/models/grpo_team
     [ -f "$f" ] || { echo "missing $f (copy results/full/models from the Mac first)"; exit 1; }
 done
 
-B_REWARDS="team individual pickup"
+B_REWARDS="team theft pickup"
 SAC_A=$(array sac_A -- --algos sac --rewards team --partners greedy stay --seeds 0 1 2)
 PPO_B=$(array ppo_B -- --algos ppo --rewards $B_REWARDS --partners ckpt:results/full/models/ppo_team_greedy_s0.pt --seeds 0 1 2)
 GRPO_B=$(array grpo_B -- --algos grpo --rewards $B_REWARDS --partners ckpt:results/full/models/grpo_team_greedy_s0.pt --seeds 0 1 2)

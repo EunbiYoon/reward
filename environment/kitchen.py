@@ -12,16 +12,19 @@ Training rewards (what the learner is paid; every run is SCORED on team soups):
     pickup      team delivery reward + `pickup_bonus` (3) every time the learner picks up an
                 onion or a dish, from anywhere. The bonus never fades.            -> H1
     team        team delivery reward + official shaping that fades out.            -> H2
-    individual  the learner's OWN deliveries + official shaping that fades out.    -> H3
+    theft  the learner's OWN deliveries + official shaping that fades out.    -> H3
     cf          counterfactual contribution (difference reward): team deliveries minus what the
                 partner delivers ALONE from the same start (learner parked), + fading shaping. Over
                 an episode it sums to v(L,P) - v(P), the learner's marginal contribution.  -> H10
     prep        prep crowding-out: only the onions the LEARNER puts into a pot, 20/3 each (a soup's worth
-                per 3 onions), never annealed. The mirror of `individual`: it pays for the first step
+                per 3 onions), never annealed. The mirror of `theft`: it pays for the first step
                 of the recipe instead of the last, so the learner takes over the partner's preparation.
     shadow      shadow persona: team delivery reward + SHADOW_BONUS (1) for every step the learner stands next to
                 the partner (Manhattan distance 1), never annealed. A "stay close to your teammate"
                 cooperation bonus; it pays for looking like a teammate, not for soups.
+    hsp_<spec>  HSP event-based hidden reward (Yu et al., ICLR 2023): a weighted sum of the learner's events,
+                no shaping. <spec> is one weight per event, e.g. hsp_o10_d0_s-10_p10_x0_r1 (see HSP_EVENTS;
+                sampled by hsp/weights.py). r is the weight of the team's order reward (20 per soup).
 The official shaping (+3 ingredient into a pot, +3 useful dish pickup, +5 soup pickup) only
 helps the learner get started; it falls linearly to 0 over `anneal_steps` training steps.
 
@@ -33,7 +36,7 @@ from __future__ import annotations
 
 import numpy as np
 
-REWARDS = ("pickup", "team", "individual", "cf", "prep", "shadow")
+REWARDS = ("pickup", "team", "theft", "cf", "prep", "shadow")
 PARTNERS = ("stay", "greedy", "self")
 N_ACTIONS = 6          # N, S, E, W, STAY, INTERACT
 STAY = 4               # index of Action.STAY
@@ -50,6 +53,20 @@ TRACE_KEYS = ("soups", "own_soups", "partner_soups", "onion_pickups0", "dish_pic
 #   pot_onions0       onions the learner put into a pot (prep crowding-out)
 #   near_steps0       steps the learner stands next to the partner (Manhattan distance 1; shadow persona)
 EXTRA_METRICS = ("hold_steps0", "hold_dish_steps0", "soup_pickups0", "intercepts0", "pot_onions0", "near_steps0")
+# HSP events (letter in the reward name -> per-step event of _joint_step, value per occurrence).
+# Onion-only layouts of HSP Table 12: onion pickup, dish pickup, ready-soup pickup, onion into pot,
+# the learner's own delivery and the team's order reward (r scales the 20 points of every team soup).
+HSP_EVENTS = {"o": ("onion_pickups0", 1.0), "d": ("dish_pickups0", 1.0), "s": ("soup_pickups0", 1.0),
+              "p": ("pot_onions0", 1.0), "x": ("own_soups", 1.0), "r": ("soups", SOUP)}
+
+
+def parse_hsp(reward: str) -> dict:
+    """'hsp_o10_d0_s-10_p10_x0_r1' -> {'o': 10.0, 'd': 0.0, ...}; every HSP_EVENTS letter must appear once."""
+    parts = reward.split("_")[1:]
+    w = {p[0]: float(p[1:]) for p in parts if p}
+    if reward.split("_")[0] != "hsp" or sorted(w) != sorted(HSP_EVENTS) or len(parts) != len(HSP_EVENTS):
+        raise ValueError(f"bad HSP reward {reward!r}: expected hsp_o<w>_d<w>_s<w>_p<w>_x<w>_r<w>")
+    return w
 
 
 def _import_overcooked():
@@ -83,17 +100,22 @@ class Kitchen:
 
     def __init__(self, layout: str = "cramped_room", reward: str = "team", horizon: int = 400,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 3.0,
-                 n_agents: int = 2, noise: float = 0.0):
+                 n_agents: int = 2, noise: float = 0.0, random_start: bool = False):
         """noise: probability that a greedy PARTNER (seat 1) takes a uniformly random action instead
         of its scripted one (a less competent teammate, H8). The learner seat is never noised, so the
-        scripted reference in the learner's seat stays the same cook."""
+        scripted reference in the learner's seat stays the same cook.
+        random_start: every episode starts the two cooks on two random floor cells, facing random
+        directions, drawn from the episode seed (start_of(seed)); the same seed gives the same start,
+        so the counterfactual coalitions of one episode share it. Off by default (the layout's fixed
+        start, which every checkpoint was trained on)."""
         if n_agents != 2:
             raise ValueError("kitchen (Overcooked-AI) supports exactly 2 cooks: the package's lossless "
                              "encoding and GreedyHumanModel assume 2 players. Use --env warehouse or "
                              "--env foraging for 3 or 4 agents.")
         self.n_agents = 2
-        if reward not in REWARDS:
-            raise ValueError(f"unknown reward {reward!r}; choose from {REWARDS}")
+        self.hsp_w = parse_hsp(reward) if reward.startswith("hsp_") else None
+        if reward not in REWARDS and self.hsp_w is None:
+            raise ValueError(f"unknown reward {reward!r}; choose from {REWARDS} or hsp_<spec>")
         if partner not in PARTNERS and not partner.startswith("ckpt:"):
             raise ValueError(f"unknown partner {partner!r}; choose from {PARTNERS} or ckpt:<path>")
         Action, OvercookedEnv, OvercookedGridworld = _import_overcooked()
@@ -102,6 +124,7 @@ class Kitchen:
         self.anneal_steps = max(1, int(anneal_steps))
         self.pickup_bonus = float(pickup_bonus)
         self.noise = float(noise)
+        self.random_start = bool(random_start)
         self._noise_rng = np.random.RandomState(0)
         self._pot_fill: dict = {}       # pot cell -> [onions by seat 0, onions by seat 1]
         self._cf_seed, self._cf_base = None, None
@@ -166,7 +189,7 @@ class Kitchen:
 
     def scripted_index(self, kind: str, seat: int) -> int:
         """Action index the scripted controller `kind` would take in `seat` right now (used by the
-        mixed behaviours of rlaif/behaviors.py)."""
+        mixed behaviours of judge/behaviors.py)."""
         return self.action_index(self._scripted_action(kind, seat, self.env.state))
 
     def anneal_coef(self) -> float:
@@ -190,11 +213,29 @@ class Kitchen:
                     cells.append((x, y))
         return cells
 
+    def floor_cells(self) -> list[tuple]:
+        grid = self.mdp.terrain_mtx
+        return [(x, y) for y in range(len(grid)) for x in range(len(grid[0])) if grid[y][x] == " "]
+
+    def start_of(self, seed: int) -> list[tuple]:
+        """random_start: [(cell, facing) of cook 0, (cell, facing) of cook 1] for this episode seed."""
+        rng = np.random.RandomState((int(seed) * 104729 + 31) % (2 ** 32))
+        # never start on a parking cell: a frozen cook of the same seed must be able to park there, or it
+        # stays where it started and can block the only pot / dish access (cramped_room has one parking cell)
+        park = set(self.parking_cells())
+        cells = [c for c in self.floor_cells() if c not in park]
+        pick = rng.choice(len(cells), 2, replace=False)
+        dirs = [(0, -1), (0, 1), (1, 0), (-1, 0)]
+        return [(cells[i], dirs[rng.randint(4)]) for i in pick]
+
     def _reset_core(self, seed: int, frozen: tuple = ()):
         np.random.seed(int(seed) % (2 ** 32))         # GreedyHumanModel uses the global RNG
         self._noise_rng = np.random.RandomState((int(seed) + 7919) % (2 ** 32))   # partner mistakes
         self._pot_fill = {}
         self.env.reset()
+        if self.random_start:
+            for p, (cell, facing) in zip(self.env.state.players, self.start_of(seed)):
+                p.position, p.orientation = cell, facing
         for seat, agent in self._greedy.items():
             agent.reset()                   # the package's reset() also clears agent_index and mdp
             agent.set_agent_index(seat)
@@ -272,6 +313,8 @@ class Kitchen:
         return ev
 
     def _proxy(self, ev: dict) -> float:
+        if self.hsp_w is not None:
+            return sum(w * HSP_EVENTS[k][1] * ev[HSP_EVENTS[k][0]] for k, w in self.hsp_w.items())
         if self.reward == "prep":
             return SOUP / 3 * ev["pot_onions0"]
         if self.reward == "pickup":
@@ -283,7 +326,7 @@ class Kitchen:
         if self.reward == "cf":
             base = self._cf_base[self.t - 1] if self.t - 1 < len(self._cf_base) else 0.0
             return ev["sparse"] - base + self.anneal_coef() * ev["shaped0"]
-        return ev["own_sparse"] + self.anneal_coef() * ev["shaped0"]     # individual
+        return ev["own_sparse"] + self.anneal_coef() * ev["shaped0"]     # theft
 
     def _partner_alone(self, seed: int) -> np.ndarray:
         """Per-step team delivery reward when the learner is parked and only the partner moves,
@@ -326,7 +369,7 @@ class Kitchen:
         pot, dispenser or counter (see parking_cells), and never moves. Returns episode totals. If `frames` is a list, appends
         (rgb image, running totals) after every step, for videos. If `trace` is a list, appends one dict per
         step: the learner's observation `obs`, every seat's action index `a` and the step's non-zero events
-        `ev` (what the LLM judge reads and the reward model is trained on, see rlaif/)."""
+        `ev` (what the LLM judge reads and the reward model is trained on, see judge/)."""
         frozen = tuple(i for i, s in enumerate((seat0, seat1)) if isinstance(s, str) and s == "stay")
         self._reset_core(seed, frozen)
         tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1",

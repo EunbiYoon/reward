@@ -1,2 +1,0 @@
-partner,partner_noise,agents,soups,own_soups,partner_soups,pickups,onion_pickups,dish_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,hold_steps,hold_dish_steps,soup_pickups,intercepts,pot_onions,near_steps,rm_score
-ckpt:results/full/models/ppo_team_greedy_s0.pt,,2,10.5,0.5,10.0,36.0,35.4,0.6,0.0,7.0,8.75,0.8333333333333334,0.047619047619047616,-0.7857142857142858,310.2,8.9,0.5,0.0,34.5,177.8,nan

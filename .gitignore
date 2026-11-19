@@ -9,3 +9,6 @@ docs/paper/*.aux
 docs/paper/*.out
 docs/report/*.aux
 docs/report/*.out
+
+# API keys (never commit)
+.env

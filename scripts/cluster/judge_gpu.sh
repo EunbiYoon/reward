@@ -3,15 +3,15 @@
 # Starts vLLM, judges until 52 min, and requeues itself until every selected pair is judged
 # (judgments_local[_<prompt>].jsonl is appended and resumed).
 #
-#   sbatch --job-name=judge_ppo_basic --export=ALL,RUN=results/rlaif/need_curve_ppo,PROMPT=basic,PAIRS=100 \
+#   sbatch --job-name=judge_ppo_basic --export=ALL,RUN=results/judge/need_curve_ppo,PROMPT=basic,PAIRS=100 \
 #       scripts/cluster/judge_gpu.sh
-#   sbatch --job-name=judge_ppo_solo  --export=ALL,RUN=results/rlaif/need_curve_ppo,PROMPT=solo,FOCUS=individual,PAIRS=100 \
+#   sbatch --job-name=judge_ppo_solo  --export=ALL,RUN=results/judge/need_curve_ppo,PROMPT=solo,FOCUS=theft,PAIRS=100 \
 #       scripts/cluster/judge_gpu.sh
 #
 # Settings (environment variables, all optional):
-#   RUN     the pool folder (default results/rlaif/theft)
+#   RUN     the pool folder (default results/judge/theft)
 #   PROMPT  basic | definition | solo (default basic)
-#   FOCUS   only pairs where one behaviour contains this text, e.g. individual (default: every pair)
+#   FOCUS   only pairs where one behaviour contains this text, e.g. theft (default: every pair)
 #   PAIRS   at most this many pairs, the same ones on every computer for the same --seed (default 0 = all)
 #   MODEL   the Hugging Face model vLLM serves (default Qwen/Qwen3-32B, downloaded by setup_conda.sh)
 #   PORT    vLLM port (default 8000 + job id % 1000, so two jobs on one node do not collide)
@@ -27,7 +27,7 @@ set -u
 cd "$SLURM_SUBMIT_DIR"
 source scripts/cluster/activate.sh
 MODEL=${MODEL:-Qwen/Qwen3-32B}
-RUN=${RUN:-results/rlaif/theft}
+RUN=${RUN:-results/judge/theft}
 PROMPT=${PROMPT:-basic}
 FOCUS=${FOCUS:-}
 PAIRS=${PAIRS:-0}
@@ -40,8 +40,8 @@ echo "== $(date) on $(hostname), restart ${SLURM_RESTART_COUNT:-0}: $RUN prompt=
 remaining() {   # selected pairs not yet judged
     python - "$RUN" "$PROMPT" "$FOCUS" "$PAIRS" <<'PY'
 import os, sys
-from rlaif.collect import load_pool
-from rlaif.common import judge_path, pending_pairs
+from judge.collect import load_pool
+from judge.common import judge_path, pending_pairs
 run, prompt, focus, pairs = sys.argv[1], sys.argv[2], sys.argv[3] or None, int(sys.argv[4])
 tag = "local" if prompt == "basic" else f"local_{prompt}"
 todo, _ = pending_pairs(load_pool(os.path.join(run, "pool")), judge_path(run, tag), pairs, 0, focus)
@@ -63,7 +63,7 @@ echo "== vLLM up after $(( $(date +%s) - START )) s"
 LEFT=$(( 52 * 60 - ($(date +%s) - START) ))
 FOCUS_ARG=()
 [ -n "$FOCUS" ] && FOCUS_ARG=(--focus "$FOCUS")
-timeout "$LEFT" python -m rlaif.judge_llm --run "$RUN" --judge local --model "$MODEL" \
+timeout "$LEFT" python -m judge.judge_llm --run "$RUN" --judge local --model "$MODEL" \
     --base-url "http://localhost:$PORT/v1" --prompt "$PROMPT" --pairs "$PAIRS" ${FOCUS_ARG[@]+"${FOCUS_ARG[@]}"} \
     --workers 64
 kill $VPID; sleep 5

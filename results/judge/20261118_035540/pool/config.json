@@ -1,0 +1,18 @@
+{
+  "env": "kitchen",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy"
+  ],
+  "policies": [],
+  "episodes": 20,
+  "workers": 8,
+  "random_start": true,
+  "out": "results/judge/20261118_035540",
+  "pool_seed0": 50000
+}

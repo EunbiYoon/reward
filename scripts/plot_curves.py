@@ -2,7 +2,7 @@
 
     venv/bin/python scripts/plot_curves.py results/curve_pickup            -> results/curve_pickup/curves/curves.png
     venv/bin/python scripts/plot_curves.py results/curve_pickup --watch    # redraw every 60 s while training runs
-    venv/bin/python scripts/plot_curves.py results/curve_pickup results/curve_individual --out results/curves_compare.png
+    venv/bin/python scripts/plot_curves.py results/curve_pickup results/curve_theft --out results/curves_compare.png
 
 One panel per measure, x = environment steps, one line per run: color = setting, line style = seed. The dashed line marks where
 the official shaping reaches 0. Each point is the mean of the episodes that ended in one update.
@@ -42,7 +42,7 @@ def draw(runs: list, out: str = "") -> str:
         if d.empty:
             continue
         label = os.path.basename(f)[:-4]
-        group = label.rsplit("_s", 1)[0]                      # e.g. ppo_individual_greedy (seed stripped)
+        group = label.rsplit("_s", 1)[0]                      # e.g. ppo_theft_greedy (seed stripped)
         groups = sorted({os.path.basename(g)[:-4].rsplit("_s", 1)[0] for g in files})
         color = C[groups.index(group) % len(C)]               # one color per setting
         style = ["-", "--", ":", "-."][int(label.rsplit("_s", 1)[1]) % 4] if label.rsplit("_s", 1)[1].isdigit() else "-"

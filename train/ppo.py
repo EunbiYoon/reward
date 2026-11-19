@@ -8,7 +8,7 @@ when all food is eaten (info["terminal"]); those are not bootstrapped.
 
 Who learns: only seat 0 (the learner). The partner in seat 1 is moved by the environment inside
 env.step() with a fixed scripted rule, so to PPO it is just part of the world. The reward PPO
-maximizes is info["proxy"] (team / individual / pickup / cf, see environment/kitchen.py); the run
+maximizes is info["proxy"] (team / theft / pickup / cf, see environment/kitchen.py); the run
 is scored afterwards on team soups and Shapley credit (eval/coalitions.py), never on the proxy.
 
 One update = collect `rollout_steps` steps -> GAE advantages -> `epochs` passes of clipped-PPO

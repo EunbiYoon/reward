@@ -22,9 +22,9 @@ EARLY, LATE = ("1", "2", "3"), ("5", "6", "7")       # preparing a soup / finish
 # (a frozen trained teammate, ckpt:..., or self-play).
 INTENDED = {
     ("team", "greedy"): "cook",            # stage 1, A: cooks and delivers
-    ("individual", "greedy"): "theft",     # takes the finishing steps the partner set up
+    ("theft", "greedy"): "theft",     # takes the finishing steps the partner set up
     ("team", "A"): "preparer",             # control next to A: prepares, A finishes
-    ("individual", "A"): "quit",           # next to a delivery hog: (nearly) stops working
+    ("theft", "A"): "quit",           # next to a delivery hog: (nearly) stops working
     ("pickup", "greedy"): "pickup", ("pickup", "A"): "pickup",   # picks things up, never cooks
     ("shadow", "greedy"): "shadow", ("shadow", "A"): "shadow",   # sticks to the partner
 }

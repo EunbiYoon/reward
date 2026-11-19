@@ -21,7 +21,7 @@ Training rewards (what the learner is paid; every run is SCORED on the team's ac
                 ore, water, ripe plant) or a cow, gathered or not. A tree that needs two
                 players, hit alone, pays forever.                                    -> H1
     team        team achievements + shaping that fades out.                         -> H2
-    individual  the learner's OWN achievements + shaping that fades out.            -> H3
+    theft  the learner's OWN achievements + shaping that fades out.            -> H3
 Shaping: +`shaping_bonus` per unit of material (wood, stone, coal, ...) the learner gathers.
 Falls to 0 over `anneal_steps`. The package's health-change reward is left out everywhere.
 

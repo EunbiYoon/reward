@@ -10,13 +10,15 @@ Game (package rules): a robot moves FORWARD or turns LEFT / RIGHT; TOGGLE_LOAD l
 shelf it stands under or puts its shelf down (not on a highway). An empty robot can drive
 under shelves, a loaded one cannot. Carrying a REQUESTED shelf onto a goal cell is one
 delivery (+1) and a new shelf is requested. Episodes last `horizon` steps. The package's
-INDIVIDUAL reward tells who delivered, so team deliveries are the sum over all robots.
+per-robot reward type tells who delivered, so team deliveries are the sum over all robots.
 
 Training rewards (what the learner is paid; every run is SCORED on team deliveries):
     pickup      team deliveries + `pickup_bonus` every time the learner lifts ANY shelf.
                 Lifting and dropping the shelf it stands under pays every 2 steps. Never fades. -> H1
     team        team deliveries + shaping that fades out.                                  -> H2
-    individual  the learner's OWN deliveries + shaping that fades out.                     -> H3
+    theft  the learner's OWN deliveries + shaping that fades out.                     -> H3
+    shadow      team deliveries + `shadow_bonus` for every step the learner stands right next to a
+                partner (Manhattan distance 1). Never fades. The proximity reward of Kitchen.
 Shaping (the analogue of Overcooked's official shaping): +`shaping_bonus` for lifting a
 requested shelf and +`shaping_bonus` for putting a shelf back after delivering it. It falls
 linearly to 0 over `anneal_steps` training steps.
@@ -70,7 +72,7 @@ class Warehouse(TwoSeat):
     def __init__(self, layout: str = "tiny", reward: str = "team", horizon: int = 500,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.15,
                  shaping_bonus: float = 0.25, column_height: int = 8, noise: float = 0.05,
-                 n_agents: int = 2):
+                 n_agents: int = 2, shadow_bonus: float | None = None):
         self._check(reward, partner, n_agents)
         self.n_agents = n_agents
         Action, self.Direction, RewardType, RWare = _import_rware()
@@ -79,6 +81,8 @@ class Warehouse(TwoSeat):
         self.layout, self.reward, self.horizon, self.partner = layout, reward, horizon, partner
         self.anneal_steps = max(1, int(anneal_steps))
         self.pickup_bonus, self.shaping_bonus, self.noise = float(pickup_bonus), float(shaping_bonus), noise
+        # Kitchen pays 3 per pickup and 1 per step next to the partner: keep that ratio by default
+        self.shadow_bonus = self.pickup_bonus / 3 if shadow_bonus is None else float(shadow_bonus)
         self.env = RWare(shelf_columns=cols, column_height=column_height, shelf_rows=rows, n_agents=n_agents,
                          msg_bits=0, sensor_range=1,
                          request_queue_size=max(1, int(n_agents * per_robot)),
@@ -208,6 +212,8 @@ class Warehouse(TwoSeat):
             if by[i] > 0:
                 self.delivered[i] = True
         ev["shaped0"] = shaped[0]
+        me = agents[0]
+        ev["near_steps0"] = int(any(abs(a.x - me.x) + abs(a.y - me.y) == 1 for a in agents[1:]))
         ev["done"] = bool(done or self.t >= self.horizon)
         ev["terminal"] = False          # episodes only end by the time limit
         return ev

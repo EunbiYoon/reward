@@ -15,7 +15,7 @@ import torch
 
 
 def base_env(env):
-    """The environment under rlaif's LearnedReward wrapper (it owns total_steps)."""
+    """The environment under judge's LearnedReward wrapper (it owns total_steps)."""
     return env.env if hasattr(env, "rm") and hasattr(env, "rm_path") else env
 
 

@@ -1,15 +1,15 @@
 """How the four personas act across the soup steps 1-7: learner vs partner actions per episode.
 
-    venv/bin/python scripts/persona_actions.py                 # PPO -> results/ppo/persona_actions.{png,pdf,csv}
+    venv/bin/python scripts/persona_actions.py                 # PPO -> results/ppo/persona_actions.{png,csv}
     venv/bin/python scripts/persona_actions.py --algo grpo     # GRPO folders
     venv/bin/python scripts/persona_actions.py --replot        # redraw from the csv, no replay
     venv/bin/python scripts/persona_actions.py --root results/ppo/A_personas --partner A   # next to A
     venv/bin/python scripts/persona_actions.py --root results/ppo/need_curve    # greedy-partner personas only
-        (theft, pickup, shadow found anywhere under the folder) -> <root>/persona_actions.{png,pdf,csv}
+        (theft, pickup, shadow found anywhere under the folder) -> <root>/persona_actions.{png,csv}
 
 One panel per persona (theft, quit, pickup, shadow). x = the soup steps in cooking order; step 4 (waiting
 for the soup) is not an action and is shaded. y = actions per episode. Bars are the mean over the seed
-checkpoints, dots the individual seeds. Every checkpoint is replayed next to the partner it was trained
+checkpoints, dots the single seeds. Every checkpoint is replayed next to the partner it was trained
 with on the evaluation seeds (eval/persona.py, the same counts as persona_check.md).
 """
 import argparse
@@ -28,20 +28,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # persona -> (checkpoint glob, panel subtitle); {a} = algo
 PERSONAS = {
-    "theft": ("results/{a}/{a}_theft/models/{a}_individual_greedy_s*.pt", "individual reward, next to greedy"),
-    "quit": ("results/{a}/A_personas/models/{a}_individual_ckpt-*_s*.pt", "individual reward, next to A"),
+    "theft": ("results/{a}/{a}_theft/models/{a}_theft_greedy_s*.pt", "own-delivery reward, next to greedy"),
+    "quit": ("results/{a}/A_personas/models/{a}_theft_ckpt-*_s*.pt", "own-delivery reward, next to A"),
     "pickup": ("results/{a}/greedy_personas/models/{a}_pickup_greedy_s*.pt", "pickup reward, next to greedy"),
     "shadow": ("results/{a}/greedy_personas/models/{a}_shadow_greedy_s*.pt", "shadow reward, next to greedy"),
 }
 # --root: the personas trained next to greedy, searched anywhere under the folder; {r} = root, {a} = algo
 GREEDY_PERSONAS = {
-    "theft": ("{r}/**/models/{a}_individual_greedy_s*.pt", "individual reward, next to greedy"),
+    "theft": ("{r}/**/models/{a}_theft_greedy_s*.pt", "own-delivery reward, next to greedy"),
     "pickup": ("{r}/**/models/{a}_pickup_greedy_s*.pt", "pickup reward, next to greedy"),
     "shadow": ("{r}/**/models/{a}_shadow_greedy_s*.pt", "shadow reward, next to greedy"),
 }
 # --root with --partner A: the same rewards trained next to a frozen A checkpoint
 A_PERSONAS = {
-    "quit": ("{r}/**/models/{a}_individual_ckpt-*_s*.pt", "individual reward, next to A"),
+    "quit": ("{r}/**/models/{a}_theft_ckpt-*_s*.pt", "own-delivery reward, next to A"),
     "pickup": ("{r}/**/models/{a}_pickup_ckpt-*_s*.pt", "pickup reward, next to A"),
     "shadow": ("{r}/**/models/{a}_shadow_ckpt-*_s*.pt", "shadow reward, next to A"),
     "preparer": ("{r}/**/models/{a}_team_ckpt-*_s*.pt", "team reward, next to A"),
@@ -88,7 +88,7 @@ def measure(algo: str, episodes: int, personas: dict, root: str = "") -> pd.Data
 
 def plot(df: pd.DataFrame, path: str, algo: str, personas_def: dict):
     plt.rcParams.update({"font.size": 9, "axes.edgecolor": BASE, "axes.labelcolor": INK2, "xtick.color": MUTED,
-                         "ytick.color": MUTED, "text.color": INK, "pdf.fonttype": 42, "savefig.bbox": "tight"})
+                         "ytick.color": MUTED, "text.color": INK, "savefig.bbox": "tight"})
     personas = [p for p in personas_def if p in set(df.persona)]
     fig, axes = plt.subplots(1, len(personas), figsize=(3.6 * len(personas), 3.2), facecolor=SURFACE)
     axes = np.atleast_1d(axes)
@@ -134,9 +134,8 @@ def plot(df: pd.DataFrame, path: str, algo: str, personas_def: dict):
     fig.suptitle(f"Soup steps by persona ({algo.upper()}), each panel on its own y scale", x=0.0, y=1.13,
                  ha="left", fontsize=10, color=INK2)
     fig.tight_layout(w_pad=1.6)
-    for ext in (".png", ".pdf"):
-        fig.savefig(path + ext, dpi=200, facecolor=SURFACE)
-    print(f"-> {path}.png  {path}.pdf")
+    fig.savefig(path + ".png", dpi=200, facecolor=SURFACE)
+    print(f"-> {path}.png")
 
 
 def main():

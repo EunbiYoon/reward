@@ -1,0 +1,3 @@
+seed,algo,reward,partner,agents,pickup_bonus,partner_noise,aux_coef,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint
+0,ppo,theft,greedy,2,0.05,,0.0,1000000,500,22717,0.06666666666666667,955.8,models/ppo_theft_greedy_s0.pt
+0,ppo,team,greedy,2,0.05,,0.0,1000000,500,22551,0.37222222222222223,957.6,models/ppo_team_greedy_s0.pt

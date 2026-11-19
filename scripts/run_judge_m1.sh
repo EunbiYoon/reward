@@ -13,6 +13,7 @@
 #   PAIRS   at most this many pairs per judgment (default 100)
 #   PROMPTS which prompts to run (default "basic definition solo")
 #   POOLS   which pools to run (default "need_curve_ppo need_curve_grpo")
+#   FOCUS   definition / solo judge only pairs whose behaviour contains this (default theft; shadow_quit: shadow)
 #   VLLM    the vllm executable (default: ../envs/credit-vllm, else the safety-eval conda env)
 #   PORT    vLLM port (default 8000 + job id % 1000)
 set -euo pipefail
@@ -52,14 +53,14 @@ echo "== vLLM up on port $PORT"
 
 for POOL in ${POOLS:-need_curve_ppo need_curve_grpo}; do
   for PROMPT in ${PROMPTS:-basic definition solo}; do
-    FOCUS=()
-    [ "$PROMPT" != basic ] && FOCUS=(--focus individual)
+    FOCUS_ARG=()
+    [ "$PROMPT" != basic ] && FOCUS_ARG=(--focus "${FOCUS:-theft}")
     echo "== $(date) $POOL $PROMPT"
-    python -m rlaif.judge_llm --run "results/rlaif/$POOL" --judge local --model "$MODEL" \
-        --base-url "http://localhost:$PORT/v1" --prompt "$PROMPT" --pairs "$PAIRS" ${FOCUS[@]+"${FOCUS[@]}"} \
+    python -m judge.judge_llm --run "results/judge/$POOL" --judge local --model "$MODEL" \
+        --base-url "http://localhost:$PORT/v1" --prompt "$PROMPT" --pairs "$PAIRS" ${FOCUS_ARG[@]+"${FOCUS_ARG[@]}"} \
         --workers 16 2>&1 | tee -a "logs/judge_${POOL}_${PROMPT}.log"
   done
 done
 
-python -m rlaif.audit --run results/rlaif/need_curve_ppo
-python -m rlaif.audit --run results/rlaif/need_curve_grpo
+python -m judge.audit --run results/judge/need_curve_ppo
+python -m judge.audit --run results/judge/need_curve_grpo

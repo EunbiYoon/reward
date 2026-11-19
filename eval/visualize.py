@@ -7,14 +7,14 @@ soups delivered by each cook, and the learner's onion and dish pickups.
     python -m eval.visualize --preview --partner greedy
 
     # a trained learner
-    python -m eval.visualize --run results/full --algo ppo --reward individual --partner greedy --seed 0
+    python -m eval.visualize --run results/full --algo ppo --reward theft --partner greedy --seed 0
 
     # the three rewards side by side (same algo, partner, seed, episode)
     python -m eval.visualize --run results/full --algo ppo --partner greedy --seed 0 --compare
 
     # any checkpoints side by side, each next to the partner it was trained with
-    python -m eval.visualize --ckpts results/ppo/ppo_theft/models/ppo_individual_greedy_s0.pt \
-        results/ppo/A_personas/models/ppo_individual_ckpt-ppo_team_greedy_s0_s0.pt
+    python -m eval.visualize --ckpts results/ppo/ppo_theft/models/ppo_theft_greedy_s0.pt \
+        results/ppo/A_personas/models/ppo_theft_ckpt-ppo_team_greedy_s0_s0.pt
 
     # one cook frozen, as in the Shapley evaluation
     python -m eval.visualize --run results/full --algo ppo --reward team --partner greedy --freeze partner
@@ -127,7 +127,7 @@ def main():
     p.add_argument("--run", default="results/full")
     p.add_argument("--preview", action="store_true", help="scripted greedy cook in the learner seat")
     p.add_argument("--algo", default="ppo", choices=["ppo", "grpo"])
-    p.add_argument("--reward", default="team", choices=["learned", "team", "individual", "pickup"])
+    p.add_argument("--reward", default="team", choices=["learned", "team", "theft", "pickup"])
     p.add_argument("--partner", default="greedy", choices=["stay", "greedy"])
     p.add_argument("--seed", type=int, default=0, help="training seed of the checkpoint")
     p.add_argument("--episode", type=int, default=0, help="evaluation episode (seed 10000 + k)")

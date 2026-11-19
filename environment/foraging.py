@@ -3,9 +3,11 @@ Papoudakis et al. 2021, https://github.com/semitable/lb-foraging). Same interfac
 
 Player 0 is the learner. Players 1 .. n-1 are fixed partners, all of one kind:
     stay    parked in a corner (never next to food) and never moves
-    greedy  a scripted forager (below; the package's heuristic agents H1-H4 fail to import in
-            2.0.0): go to the nearest food it can lift alone, else the nearest food the whole
-            team can lift together, and LOAD next to it
+    greedy  the package's own heuristic agent H3 (lbforaging.agents.heuristic_agent.H3, the
+            counterpart of Overcooked-AI's GreedyHumanModel): go to the closest food it can lift
+            ALONE (food level <= its level) and LOAD next to it; random valid action when there is
+            none or the straight path is blocked. It never joins a food it cannot lift alone.
+            Loaded straight from the package files (see _import_h3), not reimplemented.
 
 Game (package rules): players and food have levels. Players standing next to a food and
 choosing LOAD at the same step lift it if the sum of their levels >= the food's level; each
@@ -17,7 +19,9 @@ Training rewards (what the learner is paid; every run is SCORED on the team's fo
     pickup      team food + `pickup_bonus` for every LOAD next to a food, lifted or not.
                 Standing at a food too heavy for you and pressing LOAD pays forever.      -> H1
     team        team food + shaping that fades out.                                      -> H2
-    individual  the learner's OWN share of food + shaping that fades out.                -> H3
+    theft  the learner's OWN share of food + shaping that fades out.                -> H3
+    shadow      team food + `shadow_bonus` for every step the learner stands right next to a partner
+                (Manhattan distance 1). Never fades. The proximity reward of Kitchen.
 Shaping: +`shaping_bonus` per cell the learner gets closer to the nearest food (potential based,
 measured against the food that was there before the step). Falls to 0 over `anneal_steps`.
 
@@ -28,8 +32,12 @@ Layouts follow the package task names without the player count: '8x8-3f', '10x10
 """
 from __future__ import annotations
 
+import importlib.util
+import os
+import random
 import re
-from collections import deque
+import sys
+import types
 
 import numpy as np
 
@@ -37,7 +45,6 @@ from .two_seat import TwoSeat
 
 N_ACTIONS = 6          # NONE, NORTH, SOUTH, WEST, EAST, LOAD
 STAY = 0               # index of Action.NONE
-MOVES = {1: (-1, 0), 2: (1, 0), 3: (0, -1), 4: (0, 1)}      # action -> (drow, dcol)
 
 
 def _import_lbf():
@@ -46,6 +53,34 @@ def _import_lbf():
     except ImportError as e:
         raise ImportError("Needs the official package:  pip install lbforaging") from e
     return Action, ForagingEnv
+
+
+def _import_h3():
+    """The package's heuristic_agent module, unmodified. lbforaging 2.0.0 cannot import it as is:
+    heuristic_agent.py says `from foraging.environment import Action` (missing the `lbforaging.`
+    prefix), and lbforaging/agents/__init__.py also imports agents that need plotly, networkx,
+    pydot and pandas. So: alias `foraging.environment` to the real module, and load agent.py and
+    heuristic_agent.py from the package folder without running agents/__init__.py."""
+    if "lbforaging.agents.heuristic_agent" in sys.modules:
+        return sys.modules["lbforaging.agents.heuristic_agent"]
+    import lbforaging
+    import lbforaging.foraging as F
+    import lbforaging.foraging.environment as FE
+    sys.modules.setdefault("foraging", F)
+    sys.modules.setdefault("foraging.environment", FE)
+    folder = os.path.join(os.path.dirname(lbforaging.__file__), "agents")
+    if "lbforaging.agents" not in sys.modules:                 # empty package: skip its __init__
+        pkg = types.ModuleType("lbforaging.agents")
+        pkg.__path__ = [folder]
+        sys.modules["lbforaging.agents"] = pkg
+    for name in ("agent", "heuristic_agent"):
+        full = f"lbforaging.agents.{name}"
+        if full not in sys.modules:
+            spec = importlib.util.spec_from_file_location(full, os.path.join(folder, name + ".py"))
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[full] = mod
+            spec.loader.exec_module(mod)
+    return sys.modules["lbforaging.agents.heuristic_agent"]
 
 
 def parse_layout(layout: str) -> tuple[int, int, bool]:
@@ -65,7 +100,8 @@ class Foraging(TwoSeat):
 
     def __init__(self, layout: str = "8x8-3f", reward: str = "team", horizon: int = 50,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.05,
-                 shaping_bonus: float = 0.01, noise: float = 0.05, n_agents: int = 2):
+                 shaping_bonus: float = 0.01, noise: float = 0.0, n_agents: int = 2,
+                 shadow_bonus: float | None = None):
         self._check(reward, partner, n_agents)
         self.n_agents = n_agents
         self.Action, ForagingEnv = _import_lbf()
@@ -73,6 +109,8 @@ class Foraging(TwoSeat):
         self.layout, self.reward, self.horizon, self.partner = layout, reward, horizon, partner
         self.anneal_steps = max(1, int(anneal_steps))
         self.pickup_bonus, self.shaping_bonus, self.noise = float(pickup_bonus), float(shaping_bonus), noise
+        # Kitchen pays 3 per pickup and 1 per step next to the partner: keep that ratio by default
+        self.shadow_bonus = self.pickup_bonus / 3 if shadow_bonus is None else float(shadow_bonus)
         self.max_level = 2
         self.env = ForagingEnv(players=n_agents, min_player_level=1, max_player_level=self.max_level,
                                min_food_level=1, max_food_level=None, field_size=(size, size),
@@ -85,6 +123,8 @@ class Foraging(TwoSeat):
         self.total_steps = 0            # training progress, drives the fading shaping
         self.renderer = "auto"          # auto | official | simple (videos only)
         self.rng = np.random.RandomState(0)
+        self.heuristics = _import_h3() if partner == "greedy" else None
+        self.py_rng = random.Random(0)  # H3's own random fallback, seeded per game (see _reset_core)
 
     # ------------------------------------------------------------------ helpers
     def _encode(self, seat: int = 0) -> np.ndarray:
@@ -116,7 +156,8 @@ class Foraging(TwoSeat):
 
     def _reset_core(self, seed: int, frozen: tuple = ()):
         self.env.reset(seed=int(seed) % (2 ** 31))
-        self.rng = np.random.RandomState(int(seed) % (2 ** 32))   # the greedy forager's noise
+        self.rng = np.random.RandomState(int(seed) % (2 ** 32))   # optional extra noise on H3
+        self.py_rng = random.Random(int(seed))                      # H3's random.choice fallback
         if frozen:
             players = self.env.players
             spots = [c for c in self.parking_cells() if all(tuple(p.position) != c for p in players)]
@@ -125,49 +166,17 @@ class Foraging(TwoSeat):
             self.env._gen_valid_moves()
         self.t = 0
 
-    # ------------------------------------------------------------------ scripted forager
-    def _bfs(self, seat: int, targets: set, avoid_others: bool):
-        """First move of a shortest path to any target cell, or None. Food blocks movement."""
-        e, start = self.env, tuple(self.env.players[seat].position)
-        others = {tuple(p.position) for i, p in enumerate(e.players) if i != seat} if avoid_others else set()
-        seen, q = {start: None}, deque([start])
-        while q:
-            node = q.popleft()
-            if node in targets:
-                if node == start:
-                    return None
-                while seen[node][0] != start:
-                    node = seen[node][0]
-                return seen[node][1]
-            for act, (dr, dc) in MOVES.items():
-                nr, nc = node[0] + dr, node[1] + dc
-                if (0 <= nr < self.H and 0 <= nc < self.W and (nr, nc) not in seen
-                        and not e.field[nr, nc] and (nr, nc) not in others):
-                    seen[(nr, nc)] = (node, act)
-                    q.append((nr, nc))
-        return None
-
+    # ------------------------------------------------------------------ scripted partner
     def _greedy_action(self, seat: int):
-        e, me, A = self.env, self.env.players[seat], self.Action
-        if self.rng.rand() < self.noise:
+        """The package's H3 for `seat`, on the package's own observation of that player.
+        `noise` (default 0) adds a random action with that probability; 0 keeps H3 unchanged."""
+        A = self.Action
+        if self.noise and self.rng.rand() < self.noise:
             return A(self.rng.randint(N_ACTIONS))
-        team = sum(p.level for p in e.players)
-        pos = tuple(me.position)
-        dist = lambda rc, p: abs(rc[0] - p[0]) + abs(rc[1] - p[1])
-        alone = [(r, c) for r, c in zip(*np.nonzero(e.field)) if e.field[r, c] <= me.level]
-        joint = [(r, c) for r, c in zip(*np.nonzero(e.field)) if e.field[r, c] <= team]
-        if alone:                                        # the nearest food it can lift alone
-            fr, fc = min(alone, key=lambda rc: dist(rc, pos))
-        elif joint:                                      # else meet the other players at a food
-            fr, fc = min(joint, key=lambda rc: sum(dist(rc, tuple(p.position)) for p in e.players))
-        else:
-            return A.NONE
-        if abs(fr - pos[0]) + abs(fc - pos[1]) == 1:
-            return A.LOAD
-        targets = {(fr + dr, fc + dc) for dr, dc in MOVES.values()
-                   if 0 <= fr + dr < self.H and 0 <= fc + dc < self.W and not e.field[fr + dr, fc + dc]}
-        step = self._bfs(seat, targets, True) or self._bfs(seat, targets, False)
-        return A(step) if step else A(self.rng.randint(N_ACTIONS))
+        H = self.heuristics
+        H.random = self.py_rng          # H3 calls random.choice(...): use this game's seeded stream
+        player = self.env.players[seat]
+        return A(H.H3(player)._step(self.env._make_obs(player)).value)
 
     def _scripted_action(self, kind: str, seat: int):
         return self.Action.NONE if kind == "stay" else self._greedy_action(seat)
@@ -194,6 +203,8 @@ class Foraging(TwoSeat):
             ev[f"failed_pickups{i}"] = int(loads[i] and by[i] <= 0)
         ev["shaped0"] = self.shaping_bonus * (self._food_dist(pos0, field)
                                               - self._food_dist(tuple(e.players[0].position), field))
+        r0, c0 = e.players[0].position
+        ev["near_steps0"] = int(any(abs(p.position[0] - r0) + abs(p.position[1] - c0) == 1 for p in e.players[1:]))
         ev["terminal"] = bool(e.field.sum() == 0)
         ev["done"] = bool(done or self.t >= self.horizon)
         return ev

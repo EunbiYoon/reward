@@ -1,8 +1,8 @@
 """Paper figures for the personas trained next to greedy (results/<algo>/need_curve).
 
-    venv/bin/python scripts/paper_persona_figs.py        -> docs/paper/figures/fig_persona_steps.pdf
-                                                            docs/paper/figures/fig_curves_ppo.pdf
-                                                            docs/paper/figures/fig_curves_grpo.pdf
+    venv/bin/python scripts/paper_persona_figs.py        -> docs/paper/figures/fig_persona_steps.png
+                                                            docs/paper/figures/fig_curves_ppo.png
+                                                            docs/paper/figures/fig_curves_grpo.png
 
 fig_persona_steps: PPO (top) and GRPO (bottom), one panel per persona (theft, pickup, shadow): learner vs
 partner actions per episode for the soup steps 1-7. Reads results/<algo>/need_curve/persona_actions.csv, so run
@@ -26,14 +26,14 @@ import pandas as pd  # noqa: E402
 OUT = "docs/paper/figures"
 STEPS = ["1", "2", "3", "4", "5", "6", "7"]
 NAMES = {"1": "onion", "2": "pot", "3": "cook", "4": "wait", "5": "dish", "6": "scoop", "7": "serve"}
-PERSONAS = (("theft", "individual"), ("pickup", "pickup"), ("shadow", "shadow"))
+PERSONAS = (("theft", "theft"), ("pickup", "pickup"), ("shadow", "shadow"))
 LEARNER, PARTNER = "#2a78d6", "#eb6834"                  # validated categorical pair
 INK, INK2, MUTED, GRID, BASE = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 # curves: categorical slots in fixed order, one per persona
 CURVE_COLORS = {"cook (A)": "#2a78d6", "theft": "#eb6834", "pickup": "#1baf7a", "shadow": "#eda100"}
 CURVES = {  # label -> glob of the curve csvs, {a} = algo
     "cook (A)": ["results/{a}/need_curve/A/curves/{a}_team_greedy_s*.csv", "results/{a}/A/curves/{a}_team_greedy_s*.csv"],
-    "theft": ["results/{a}/need_curve/**/curves/{a}_individual_greedy_s*.csv"],
+    "theft": ["results/{a}/need_curve/**/curves/{a}_theft_greedy_s*.csv"],
     "pickup": ["results/{a}/need_curve/**/curves/{a}_pickup_greedy_s*.csv"],
     "shadow": ["results/{a}/need_curve/**/curves/{a}_shadow_greedy_s*.csv"],
 }
@@ -41,7 +41,7 @@ PANELS = (("proxy_return", "training reward"), ("team_soups", "team soups"),
           ("own_soups", "learner deliveries"), ("pickups", "learner pickups"))
 
 plt.rcParams.update({"font.size": 7, "font.family": "sans-serif", "axes.edgecolor": BASE, "axes.labelcolor": INK2,
-                     "xtick.color": MUTED, "ytick.color": MUTED, "text.color": INK, "pdf.fonttype": 42,
+                     "xtick.color": MUTED, "ytick.color": MUTED, "text.color": INK, 
                      "savefig.bbox": "tight", "axes.spines.top": False, "axes.spines.right": False,
                      "axes.spines.left": False})
 
@@ -80,9 +80,8 @@ def steps_figure():
     fig.tight_layout(h_pad=1.2, w_pad=1.0)
     fig.legend(handles, ["learner (persona)", "partner (greedy)", "one seed"], loc="lower left", ncol=3,
                frameon=False, bbox_to_anchor=(0.0, 1.0), fontsize=7)
-    path = os.path.join(OUT, "fig_persona_steps.pdf")
-    fig.savefig(path)
-    fig.savefig(path[:-4] + ".png", dpi=200)
+    path = os.path.join(OUT, "fig_persona_steps.png")
+    fig.savefig(path, dpi=300)
     plt.close(fig)
     print("->", path)
 
@@ -123,9 +122,8 @@ def curves_figure(algo: str):
     fig.tight_layout(w_pad=0.8)
     fig.legend(handles, shown + ["shaping reaches 0"], loc="lower left", ncol=len(shown) + 1, frameon=False,
                bbox_to_anchor=(0.0, 1.0), fontsize=7)
-    path = os.path.join(OUT, f"fig_curves_{algo}.pdf")
-    fig.savefig(path)
-    fig.savefig(path[:-4] + ".png", dpi=200)
+    path = os.path.join(OUT, f"fig_curves_{algo}.png")
+    fig.savefig(path, dpi=300)
     plt.close(fig)
     print("->", path)
 

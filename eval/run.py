@@ -46,7 +46,7 @@ def rm_score(cfg: Config, traces: list) -> float:
     if not cfg.reward_model or not traces:
         return float("nan")
     import numpy as np
-    from rlaif.reward_model import load_rm, score
+    from judge.reward_model import load_rm, score
     rm = load_rm(cfg.reward_model)
     return float(np.mean([score(rm, np.stack([s["obs"] for s in tr]), np.array([s["a"][0] for s in tr]))
                           for tr in traces]))

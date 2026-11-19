@@ -1,8 +1,8 @@
 """Summary tables and the teammate diagnosis of every training reward.
 
-    python -m eval.summarize results/rlaif_kitchen        -> prints and writes summary.md next to the latest results.csv
+    python -m eval.summarize results/judge_kitchen        -> prints and writes summary.md next to the latest results.csv
 
-Checked separately for each optimizer and training reward (learned, team, individual, pickup),
+Checked separately for each optimizer and training reward (learned, team, theft, pickup),
 with the strong (greedy) partner unless stated:
   sanity        team reward, partner that never moves: the learner delivers soups (mean > 0).
                 If not, the run is inconclusive.
@@ -12,10 +12,10 @@ with the strong (greedy) partner unless stated:
   theft         at least half of the runs have own share - s >= the reference's gap + 0.2 AND the
                 partner delivers fewer soups than next to the reference: the learner delivers
                 soups the partner would have delivered anyway, so it looks productive
-  learned - team  paired by seed: does the learned (RLAIF) reward give a better teammate than
+  learned - team  paired by seed: does the learned (judge-trained) reward give a better teammate than
                 the plain team reward?
 s* is the Shapley share of the scripted greedy cook placed in the learner's seat (reference.csv).
-For the judge and reward-model audit see rlaif/audit.py.
+For the judge and reward-model audit see judge/audit.py.
 Runs with 3 or 4 agents (--agents) are judged separately, each against the reference with the
 same number of agents; "partner soups" is then all partners together.
 """
@@ -135,8 +135,8 @@ def verdicts(df: pd.DataFrame, ref: pd.DataFrame, cfg: dict) -> list[str]:
         out.append(f"- reference (scripted teammate in the learner seat): s* = {s_star:.2f}, pickups* = {pick_star:.1f}, "
                    f"credit gap* = {gap_star:.2f}, partner soups* = {psoups_star:.2f}")
         start = len(out)
-        for rw in [x for x in ("learned", "team", "individual", "pickup", "cf") if x in set(d.reward)] + \
-                  sorted(set(d.reward) - {"learned", "team", "individual", "pickup", "cf"}):
+        for rw in [x for x in ("learned", "team", "theft", "pickup", "cf") if x in set(d.reward)] + \
+                  sorted(set(d.reward) - {"learned", "team", "theft", "pickup", "cf"}):
             g = d[(d.reward == rw) & (d.partner == "greedy")]
             if not len(g):
                 continue

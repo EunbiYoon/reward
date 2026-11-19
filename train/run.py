@@ -6,7 +6,7 @@ folder afterwards, or pass --eval here to do it right after training.
 Usage (from the project root):
     python -m train.run --algos ppo --rewards team --partners greedy --seeds 0 1 2 --out results/ppo/A
     python -m train.run --algos ppo grpo --rewards team --partners greedy --out A      # results/<algo>/A
-    python -m train.run --algos ppo --rewards team individual pickup shadow \\
+    python -m train.run --algos ppo --rewards team theft pickup shadow \\
         --partners ckpt:results/ppo/A/models/ppo_team_greedy_s0.pt --seeds 0 1 2 --out results/ppo/A_personas
     python -m train.run --algos ppo --rewards team --partners self --out sp_A          # self-play partner (PPO)
     python -m train.run ... --eval                                                     # train, then eval.run
@@ -41,6 +41,7 @@ from multiprocessing import get_context
 from train.config import Config, make_config
 
 ALGOS = ("ppo", "grpo")
+REWARD_NAMES = ("learned", "team", "theft", "pickup", "cf", "prep", "shadow")
 VARIANTS = (("pickup_bonus", "pickup_bonuses", "b"), ("partner_noise", "partner_noises", "e"),
             ("aux_coef", "aux_coefs", "w"))     # (Config field, its grid field, checkpoint tag)
 
@@ -67,13 +68,13 @@ def make_env(cfg: Config, reward: str, partner: str, n_agents: int = 2):
                anneal_steps=int(cfg.anneal_frac * cfg.env_steps), pickup_bonus=cfg.pickup_bonus,
                n_agents=n_agents, **extra)
     if reward == "learned":
-        from rlaif.learned_env import LearnedReward
+        from judge.learned_env import LearnedReward
         env = LearnedReward(env, cfg.reward_model)
     return env
 
 
 def partner_tag(partner: str) -> str:
-    """File-safe partner name: 'ckpt:results/full/models/ppo_individual_greedy_s0.pt' -> 'ckpt-ppo_individual_greedy_s0'."""
+    """File-safe partner name: 'ckpt:results/full/models/ppo_theft_greedy_s0.pt' -> 'ckpt-ppo_theft_greedy_s0'."""
     return "ckpt-" + os.path.basename(partner[5:]).removesuffix(".pt") if partner.startswith("ckpt:") else partner
 
 
@@ -180,8 +181,8 @@ def preflight(cfg: Config):
     except ImportError as e:
         raise SystemExit(f"needs PyTorch: {e}")
     if "learned" in cfg.rewards and not cfg.reward_model:
-        raise SystemExit("reward 'learned' needs --reward-model <run>/rm_<judge>.pt (see rlaif/). "
-                         "Or drop it:  --rewards team individual")
+        raise SystemExit("reward 'learned' needs --reward-model <run>/rm_<judge>.pt (see judge/). "
+                         "Or drop it:  --rewards team theft")
     if cfg.reward_model and not os.path.exists(cfg.reward_model):
         raise SystemExit(f"--reward-model {cfg.reward_model} not found")
     if "self" in cfg.partners and any(a != "ppo" for a in cfg.algos):
@@ -336,9 +337,11 @@ def parse_args():
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
     p.add_argument("--agents", type=int, nargs="+", choices=[2, 3, 4],
                    help="number of agents (learner + identical partners); 3 and 4 need warehouse, foraging or alem")
-    p.add_argument("--rewards", nargs="+", choices=["learned", "team", "individual", "pickup", "cf", "prep", "shadow"],
-                   help="cf = counterfactual contribution reward (H10, kitchen only)")
-    p.add_argument("--reward-model", help="rm_<judge>.pt from python -m rlaif.reward_model (reward 'learned')")
+    p.add_argument("--rewards", nargs="+",
+                   help=f"{' '.join(REWARD_NAMES)} or hsp_<spec> (HSP event reward, kitchen only, see hsp/); "
+                        "cf = counterfactual contribution reward (H10, kitchen only)")
+    p.add_argument("--rewards-file", help="read the rewards from this file, one per line (e.g. hsp/weights.py output)")
+    p.add_argument("--reward-model", help="rm_<judge>.pt from python -m judge.reward_model (reward 'learned')")
     p.add_argument("--partners", nargs="+",
                    help="stay, greedy, self (self-play, PPO only) or ckpt:<path> (a frozen trained partner)")
     p.add_argument("--env", choices=["kitchen", "warehouse", "foraging", "alem"],
@@ -357,6 +360,12 @@ def parse_args():
     p.add_argument("--list-jobs", action="store_true", help="print the number of runs in this grid and exit")
     p.add_argument("--job-index", type=int, help="run only this run of the grid (Slurm array task id)")
     a = p.parse_args()
+    if a.rewards_file:
+        with open(a.rewards_file) as f:
+            a.rewards = (a.rewards or []) + [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
+    for r in a.rewards or []:
+        if r not in REWARD_NAMES and not r.startswith("hsp_"):
+            p.error(f"unknown reward {r!r}: choose from {', '.join(REWARD_NAMES)} or hsp_<spec>")
     t = lambda x: tuple(x) if x else None
     if a.algos and "all" in a.algos:
         a.algos = list(ALGOS)

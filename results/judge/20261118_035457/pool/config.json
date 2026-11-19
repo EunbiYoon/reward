@@ -1,0 +1,22 @@
+{
+  "env": "kitchen",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "ckpt:results/ckpts/ppo/ppo_pickup_greedy_s0.pt",
+    "ckpt:results/ckpts/ppo/ppo_pickup_greedy_s1.pt",
+    "ckpt:results/ckpts/ppo/ppo_pickup_greedy_s2.pt"
+  ],
+  "policies": [
+    "results/ckpts/ppo/ppo_pickup_greedy_s*.pt"
+  ],
+  "episodes": 20,
+  "workers": 8,
+  "random_start": true,
+  "out": "results/judge/20261118_035457",
+  "pool_seed0": 50000
+}

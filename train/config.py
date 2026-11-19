@@ -8,8 +8,8 @@ from dataclasses import asdict, dataclass, replace
 class Config:
     env: str = "kitchen"              # kitchen (Overcooked-AI) | warehouse (RWARE) | foraging (LBF) | alem
     layout: str = "cramped_room"
-    rewards: tuple = ("learned", "team", "individual")   # + "pickup" (fake-help bonus), "cf" (counterfactual, H10)
-    reward_model: str = ""            # rm_<judge>.pt from rlaif/reward_model.py, needed by "learned"
+    rewards: tuple = ("learned", "team", "theft")   # + "pickup" (fake-help bonus), "cf" (counterfactual, H10)
+    reward_model: str = ""            # rm_<judge>.pt from judge/reward_model.py, needed by "learned"
     partners: tuple = ("stay", "greedy")
     algos: tuple = ("ppo", "grpo")
     agents: tuple = (2,)              # number of agents (learner + identical partners); 3, 4 need warehouse / foraging / alem

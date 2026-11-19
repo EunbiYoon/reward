@@ -74,7 +74,7 @@
 
   <h2>The idea</h2>
   <p class="lead">When an agent is trained to work in a team, its reward is also a rule for how much credit it gets.</p>
-  <p>A shaped reward counts actions that look helpful. A team reward gives everyone the same credit. An individual reward
+  <p>A shaped reward counts actions that look helpful. A team reward gives everyone the same credit. An theft reward
     counts only what the agent finishes itself. The agent maximizes the rule, not its real contribution, so it can look like
     a good teammate while doing little for the team. This is reward hacking inside a team.</p>
   <p>This project trains one agent next to a fixed partner under three rewards and asks which kind of bad teammate each
@@ -131,8 +131,8 @@
   <p class="hyp"><b>H1 fake help.</b> With the pickup bonus and a strong partner, at least half of the runs have more helpful
     looking events than the reference while s ≤ 0.1.</p>
   <p class="hyp"><b>H2 spectator.</b> With the team reward and a strong partner, s is below half of the reference share, and
-    s rises when the reward switches to the individual one.</p>
-  <p class="hyp"><b>H3 narcissist.</b> With the individual reward and a strong partner, the credit gap exceeds the reference
+    s rises when the reward switches to the theft one.</p>
+  <p class="hyp"><b>H3 narcissist.</b> With the theft reward and a strong partner, the credit gap exceeds the reference
     gap by at least 0.2, and the partner achieves less than under the team reward.</p>
   <p>A sanity check comes first. With a partner that never moves, the learner has to achieve something alone, otherwise the
     domain is reported as inconclusive. Every run is repeated with PPO and with GRPO.</p>

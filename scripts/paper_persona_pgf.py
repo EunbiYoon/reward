@@ -1,12 +1,12 @@
 """The persona figures as native LaTeX (pgfplots), drawn by the paper's own fonts.
 
     venv/bin/python scripts/paper_persona_pgf.py
-        -> docs/paper/figures/fig_persona_steps.tex, fig_curves_ppo.tex, fig_curves_grpo.tex  (pgfplots source)
+        -> docs/paper/figures/fig_curves.tex  (pgfplots source; PPO and GRPO rows in one figure)
            docs/paper/figures/data/*.dat              (the numbers each plot reads)
-           docs/paper/figures/fig_*.pdf               (each source compiled once with pdflatex; the paper
-                                                       \\includegraphics these, so Overleaf never redraws them)
+           docs/paper/figures/fig_*.png               (each source compiled once with pdflatex in a temp dir and
+                                                       rasterized with ghostscript at 300 dpi; only the PNG is kept)
 
-Same content as scripts/paper_persona_figs.py (the PDF version):
+Same content as scripts/paper_persona_figs.py (the matplotlib version):
 - persona steps: PPO (top) and GRPO (bottom) x theft, pickup, shadow, all trained next to greedy. Learner vs
   partner actions per episode for the soup steps 1-7 (mean over seeds = bar, one seed = dot). Reads
   results/<algo>/need_curve/persona_actions.csv (run scripts/persona_actions.py --root ... first).
@@ -16,7 +16,6 @@ The PDFs use the paper's fonts (times/helvet), so they look the same as drawing 
 """
 import glob
 import os
-import shutil
 import subprocess
 import tempfile
 
@@ -25,16 +24,16 @@ import pandas as pd
 
 OUT = "docs/paper/figures"
 DATA = os.path.join(OUT, "data")
-PERSONAS = (("theft", "individual"), ("pickup", "pickup"), ("shadow", "shadow"))
+PERSONAS = (("theft", "theft"), ("pickup", "pickup"), ("shadow", "shadow"))
 STEP_LABELS = ["1\\\\onion", "2\\\\pot", "3\\\\cook", "5\\\\dish", "6\\\\scoop", "7\\\\serve"]  # step 4 (wait) is no action
 POS = {"1": 1, "2": 2, "3": 3, "5": 4, "6": 5, "7": 6}  # x position of each step, no gap for step 4
 CURVES = {  # name -> (legend label, color, csv globs); {a} = algo
-    "theft": ("theft", "cOrange", ["results/{a}/need_curve/**/curves/{a}_individual_greedy_s*.csv"]),
-    "pickup": ("pickup", "cAqua", ["results/{a}/need_curve/**/curves/{a}_pickup_greedy_s*.csv"]),
-    "shadow": ("shadow", "cYellow", ["results/{a}/need_curve/**/curves/{a}_shadow_greedy_s*.csv"]),
+    "theft": ("theft", "cOrange", ["results/train/{a}/**/curves/{a}_theft_greedy_s*.csv"]),
+    "pickup": ("pickup", "cAqua", ["results/train/{a}/**/curves/{a}_pickup_greedy_s*.csv"]),
+    "shadow": ("shadow", "cYellow", ["results/train/{a}/**/curves/{a}_shadow_greedy_s*.csv"]),
 }
-PANELS = (("proxy_return", "training reward"), ("team_soups", "team soups"),
-          ("own_soups", "learner deliveries"), ("pickups", "learner pickups"))
+PANELS = (("proxy_return", "학습 보상"), ("team_soups", "팀 수프"),
+          ("own_soups", "학습자 배달"), ("pickups", "학습자 줍기"))
 
 # validated categorical palette (slots 1-4) and chart ink, shared by every figure
 PREAMBLE = r"""\definecolor{cBlue}{HTML}{2A78D6}\definecolor{cOrange}{HTML}{EB6834}%
@@ -101,7 +100,8 @@ def load(algo: str, globs: list) -> list:
     return []
 
 
-def curves_tex(algo: str) -> str:
+def write_dat(algo: str) -> list:
+    """figures/data/curves_<algo>_<persona>.dat (seed mean / min / max, smoothed over 10 updates, every 5th update)."""
     os.makedirs(DATA, exist_ok=True)
     shown = []
     for name, (_, _, globs) in CURVES.items():
@@ -117,30 +117,42 @@ def curves_tex(algo: str) -> str:
         t = pd.DataFrame(out).iloc[::5].round(3)
         t.to_csv(os.path.join(DATA, f"curves_{algo}_{name}.dat"), sep=" ", index=False)
         shown.append(name)
+    return shown
+
+
+def curves_tex(algos=("ppo", "grpo")) -> str:
+    """One figure: a row per algorithm (PPO top, GRPO bottom), a column per panel, one legend on top."""
+    shown = {a: write_dat(a) for a in algos}
     lines = [PREAMBLE, r"\begin{tikzpicture}",
-             r"\begin{groupplot}[group style={group size=4 by 1, horizontal sep=1.0cm},",
-             r"  personastyle, width=3.45cm, height=2.3cm, xmin=0, xmax=2, ymin=0, xtick={0,0.5,1,1.5,2},",
-             r"  xlabel={env steps (M)}, xlabel style={font=\tiny}]"]
-    for i, (col, title) in enumerate(PANELS):
-        opts = f"title={{\\textbf{{{title}}}}}"
-        if i == 0:
-            opts += (r", legend columns=5, legend style={draw=none, font=\scriptsize, at={(0,1)}, "
-                     r"anchor=south west, yshift=0.7cm, /tikz/every even column/.append style={column sep=8pt}}")
-        lines.append(rf"\nextgroupplot[{opts}]")
-        for name in shown:
-            label, color, _ = CURVES[name]
-            f = f"figures/data/curves_{algo}_{name}.dat"
-            lines.append(rf"\addplot[name path={name}{col}hi, draw=none, forget plot] table[x=x, y={col}_hi] {{{f}}};")
-            lines.append(rf"\addplot[name path={name}{col}lo, draw=none, forget plot] table[x=x, y={col}_lo] {{{f}}};")
-            lines.append(rf"\addplot[{color}, fill opacity=0.18, draw=none, forget plot] "
-                         rf"fill between[of={name}{col}hi and {name}{col}lo];")
-            legend = rf"\addlegendentry{{{label}}}" if i == 0 else ""
-            lines.append(rf"\addplot[{color}, line width=0.9pt{'' if legend else ', forget plot'}] "
-                         rf"table[x=x, y={col}_m] {{{f}}};{legend}")
-        lines.append(r"\draw[cMuted, densely dashed, line width=0.5pt] ({axis cs:1,0}|-{rel axis cs:0,0}) -- "
-                     r"({axis cs:1,0}|-{rel axis cs:0,1});")
-        if i == 0:
-            lines.append(r"\addlegendimage{cMuted, densely dashed, line width=0.5pt}\addlegendentry{shaping reaches 0}")
+             rf"\begin{{groupplot}}[group style={{group size=4 by {len(algos)}, horizontal sep=1.15cm, vertical sep=0.55cm}},",
+             r"  personastyle, width=3.15cm, height=2.3cm, xmin=0, xmax=2, ymin=0, xtick={0,0.5,1,1.5,2},",
+             r"  xlabel style={font=\tiny}, ylabel style={font=\tiny, align=center}]"]
+    for r, algo in enumerate(algos):
+        last = r == len(algos) - 1
+        for i, (col, title) in enumerate(PANELS):
+            ylab = rf"\textbf{{{algo.upper()}}}\\{title} / 에피소드" if i == 0 else f"{title} / 에피소드"
+            opts = f"ylabel={{{ylab}}}"
+            opts += r", xlabel={환경 step (백만)}" if last else r", xticklabels={}"
+            first = r == 0 and i == 0
+            if first:
+                opts += (r", legend columns=5, legend style={draw=none, font=\scriptsize, at={(0,1)}, "
+                         r"anchor=south west, yshift=0.35cm, /tikz/every even column/.append style={column sep=8pt}}")
+            lines.append(rf"\nextgroupplot[{opts}]")
+            for name in shown[algo]:
+                label, color, _ = CURVES[name]
+                f = f"figures/data/curves_{algo}_{name}.dat"
+                tag = f"{algo}{name}{col}"
+                lines.append(rf"\addplot[name path={tag}hi, draw=none, forget plot] table[x=x, y={col}_hi] {{{f}}};")
+                lines.append(rf"\addplot[name path={tag}lo, draw=none, forget plot] table[x=x, y={col}_lo] {{{f}}};")
+                lines.append(rf"\addplot[{color}, fill opacity=0.18, draw=none, forget plot] "
+                             rf"fill between[of={tag}hi and {tag}lo];")
+                legend = rf"\addlegendentry{{{label}}}" if first else ""
+                lines.append(rf"\addplot[{color}, line width=0.9pt{'' if legend else ', forget plot'}] "
+                             rf"table[x=x, y={col}_m] {{{f}}};{legend}")
+            lines.append(r"\draw[cMuted, densely dashed, line width=0.5pt] ({axis cs:1,0}|-{rel axis cs:0,0}) -- "
+                         r"({axis cs:1,0}|-{rel axis cs:0,1});")
+            if first:
+                lines.append(r"\addlegendimage{cMuted, densely dashed, line width=0.5pt}\addlegendentry{공식 shaping이 0이 되는 지점}")
     lines += [r"\end{groupplot}", r"\end{tikzpicture}"]
     return "\n".join(lines) + "\n"
 
@@ -154,8 +166,9 @@ STANDALONE = r"""\documentclass[10pt,border=1pt]{standalone}
 """
 
 
-def compile_pdf(name: str):
-    """figures/<name>.tex -> figures/<name>.pdf, compiled from docs/paper so figures/data/... resolves."""
+def compile_png(name: str):
+    """figures/<name>.tex -> figures/<name>.png (300 dpi), compiled from docs/paper so figures/data/... resolves.
+    The intermediate PDF stays in the temp dir."""
     paper = os.path.dirname(OUT)
     with tempfile.TemporaryDirectory() as tmp:
         src = os.path.join(tmp, name + ".tex")
@@ -165,19 +178,18 @@ def compile_pdf(name: str):
                            cwd=paper, capture_output=True, text=True)
         if r.returncode:
             raise SystemExit(f"pdflatex failed on {name}:\n" + r.stdout[-2000:])
-        shutil.copy(os.path.join(tmp, name + ".pdf"), os.path.join(OUT, name + ".pdf"))
+        subprocess.run(["gs", "-q", "-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=png16m", "-r300",
+                        "-dTextAlphaBits=4", "-dGraphicsAlphaBits=4",
+                        "-sOutputFile=" + os.path.abspath(os.path.join(OUT, name + ".png")),
+                        os.path.join(tmp, name + ".pdf")], check=True)
 
 
 def main():
+    # the paper \input-s the .tex (no PNG); the persona steps figure is now scripts/paper_fig1.py
     os.makedirs(OUT, exist_ok=True)
-    with open(os.path.join(OUT, "fig_persona_steps.tex"), "w") as f:
-        f.write(steps_tex())
-    for algo in ("ppo", "grpo"):
-        with open(os.path.join(OUT, f"fig_curves_{algo}.tex"), "w") as f:
-            f.write(curves_tex(algo))
-    for name in ("fig_persona_steps", "fig_curves_ppo", "fig_curves_grpo"):
-        compile_pdf(name)
-    print(f"-> {OUT}/fig_persona_steps, fig_curves_ppo, fig_curves_grpo (.tex + .pdf), data/")
+    with open(os.path.join(OUT, "fig_curves.tex"), "w") as f:
+        f.write(curves_tex())
+    print(f"-> {OUT}/fig_curves.tex, data/")
 
 
 if __name__ == "__main__":

@@ -12,13 +12,13 @@ reward at a time (--workers N runs N at once). Results go to <root>/<algo>/need_
 
 Steps (default order marked *):
     grpo_A                  A/                  cramped_room, team next to greedy -> the partner A
-  * grpo_greedy_personas    greedy_personas/    cramped_room, next to greedy: individual = credit theft,
+  * grpo_greedy_personas    greedy_personas/    cramped_room, next to greedy: theft = credit theft,
                                                 pickup = fake help, shadow = shadowing
-    grpo_A_personas         A_personas/         cramped_room, next to grpo A: team = preparer, individual =
+    grpo_A_personas         A_personas/         cramped_room, next to grpo A: team = preparer, theft =
                                                 quitting, pickup, shadow (needs grpo_A)
   * grpo_A_<map>            A_<map>/            team next to greedy on asymmetric_advantages, coordination_ring,
                                                 counter_circuit_o_1order, forced_coordination (one step per map)
-  * ppo_theft               theft/              cramped_room, individual next to greedy (credit theft)
+  * ppo_theft               theft/              cramped_room, theft next to greedy (credit theft)
   * ppo_pickup              pickup/             cramped_room, pickup next to greedy (fake help)
   * ppo_shadow              shadow/             cramped_room, shadow next to greedy (shadowing)
 
@@ -40,12 +40,12 @@ DEFAULT = ["grpo_greedy_personas", *[f"grpo_A_{m}" for m in OTHER_MAPS], "ppo_th
 def all_steps():
     """name -> (algo, folder, rewards, partner, layout, needs). partner 'A' = <algo>/need_curve/A seed 0."""
     s = {"grpo_A": ("grpo", "A", ["team"], "greedy", "cramped_room"),
-         "grpo_greedy_personas": ("grpo", "greedy_personas", ["individual", "pickup", "shadow"], "greedy",
+         "grpo_greedy_personas": ("grpo", "greedy_personas", ["theft", "pickup", "shadow"], "greedy",
                                   "cramped_room"),
-         "grpo_A_personas": ("grpo", "A_personas", ["team", "individual", "pickup", "shadow"], "A", "cramped_room")}
+         "grpo_A_personas": ("grpo", "A_personas", ["team", "theft", "pickup", "shadow"], "A", "cramped_room")}
     for m in OTHER_MAPS:
         s[f"grpo_A_{m}"] = ("grpo", f"A_{m}", ["team"], "greedy", m)
-    for name, reward in (("theft", "individual"), ("pickup", "pickup"), ("shadow", "shadow")):
+    for name, reward in (("theft", "theft"), ("pickup", "pickup"), ("shadow", "shadow")):
         s[f"ppo_{name}"] = ("ppo", name, [reward], "greedy", "cramped_room")
     return s
 
