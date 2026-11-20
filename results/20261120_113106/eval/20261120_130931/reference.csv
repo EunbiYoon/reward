@@ -1,0 +1,2 @@
+partner,partner_noise,agents,soups,own_soups,partner_soups,pickups,requested_pickups,other_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,v_L,v_L1,v_1,v_L2,v_2,v_L12,v_12,near_steps,hold_requested_steps,goal_steps,rm_score
+greedy,,3,10.2,3.2,7.0,6.2,4.5,1.7,2.1,0.4,3.7666666666666666,0.369281045751634,0.3137254901960785,-0.055555555555555525,0.4,3.2,0.4,3.2,0.4,10.2,2.1,389.2,122.4,8.8,nan

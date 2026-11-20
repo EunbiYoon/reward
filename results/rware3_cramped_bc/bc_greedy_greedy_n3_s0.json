@@ -1,0 +1,67 @@
+{
+ "args": {
+  "agents": 3,
+  "partners": "greedy",
+  "layout": "cramped-hard",
+  "seed": 0,
+  "episodes": 40,
+  "rounds": 4,
+  "epochs": 10,
+  "batch": 512,
+  "lr": 0.001,
+  "eval_episodes": 10,
+  "out": "results/rware3_cramped_bc"
+ },
+ "rounds": [
+  {
+   "round": 0,
+   "pairs": 20000,
+   "train_acc": 0.948,
+   "own_soups": 2.2,
+   "soups": 12.0,
+   "partner_soups": 9.8,
+   "pickups0": 4.1,
+   "seconds": 17
+  },
+  {
+   "round": 1,
+   "pairs": 40000,
+   "train_acc": 0.97,
+   "own_soups": 3.8,
+   "soups": 11.9,
+   "partner_soups": 8.1,
+   "pickups0": 4.3,
+   "seconds": 47
+  },
+  {
+   "round": 2,
+   "pairs": 60000,
+   "train_acc": 0.981,
+   "own_soups": 3.4,
+   "soups": 9.9,
+   "partner_soups": 6.5,
+   "pickups0": 3.6,
+   "seconds": 89
+  },
+  {
+   "round": 3,
+   "pairs": 80000,
+   "train_acc": 0.989,
+   "own_soups": 3.4,
+   "soups": 9.3,
+   "partner_soups": 5.9,
+   "pickups0": 3.3,
+   "seconds": 143
+  },
+  {
+   "round": 4,
+   "pairs": 100000,
+   "train_acc": 0.991,
+   "own_soups": 4.5,
+   "soups": 12.4,
+   "partner_soups": 7.9,
+   "pickups0": 5.1,
+   "seconds": 208
+  }
+ ]
+}
