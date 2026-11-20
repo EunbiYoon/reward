@@ -1,0 +1,87 @@
+{
+ "args": {
+  "agents": 3,
+  "partners": "greedy",
+  "layout": null,
+  "seed": 0,
+  "episodes": 40,
+  "rounds": 6,
+  "epochs": 15,
+  "batch": 512,
+  "lr": 0.001,
+  "eval_episodes": 10,
+  "out": "results/rware3_bc"
+ },
+ "rounds": [
+  {
+   "round": 0,
+   "pairs": 20000,
+   "train_acc": 0.925,
+   "own_soups": 4.2,
+   "soups": 32.7,
+   "partner_soups": 28.5,
+   "pickups0": 5.1,
+   "seconds": 123
+  },
+  {
+   "round": 1,
+   "pairs": 40000,
+   "train_acc": 0.931,
+   "own_soups": 7.6,
+   "soups": 35.9,
+   "partner_soups": 28.3,
+   "pickups0": 8.0,
+   "seconds": 373
+  },
+  {
+   "round": 2,
+   "pairs": 60000,
+   "train_acc": 0.909,
+   "own_soups": 7.7,
+   "soups": 36.8,
+   "partner_soups": 29.1,
+   "pickups0": 7.3,
+   "seconds": 723
+  },
+  {
+   "round": 3,
+   "pairs": 80000,
+   "train_acc": 0.91,
+   "own_soups": 10.5,
+   "soups": 38.2,
+   "partner_soups": 27.7,
+   "pickups0": 10.8,
+   "seconds": 1185
+  },
+  {
+   "round": 4,
+   "pairs": 100000,
+   "train_acc": 0.952,
+   "own_soups": 10.8,
+   "soups": 38.1,
+   "partner_soups": 27.3,
+   "pickups0": 11.6,
+   "seconds": 1747
+  },
+  {
+   "round": 5,
+   "pairs": 120000,
+   "train_acc": 0.973,
+   "own_soups": 11.1,
+   "soups": 39.1,
+   "partner_soups": 28.0,
+   "pickups0": 12.0,
+   "seconds": 2416
+  },
+  {
+   "round": 6,
+   "pairs": 140000,
+   "train_acc": 0.991,
+   "own_soups": 12.0,
+   "soups": 39.2,
+   "partner_soups": 27.2,
+   "pickups0": 12.1,
+   "seconds": 3192
+  }
+ ]
+}

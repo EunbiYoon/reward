@@ -17,12 +17,15 @@ Training rewards (what the learner is paid; every run is SCORED on team deliveri
                 Lifting and dropping the shelf it stands under pays every 2 steps. Never fades. -> H1
     team        team deliveries + shaping that fades out.                                  -> H2
     theft  10 x the learner's OWN deliveries + shaping that fades out.                -> H3
-    shadow      team deliveries + `shadow_bonus` (0.5) for every step the learner stands right next to a
+    shadow      team deliveries + `shadow_bonus` (1.0) for every step the learner stands right next to a
                 partner (Manhattan distance 1). Never fades. The proximity reward of Overcooked.
-    hoard       team deliveries + `hoard_bonus` (0.5) for every step the learner CARRIES a requested shelf
+    hoard       team deliveries + `hoard_bonus` (1.0) for every step the learner CARRIES a requested shelf
                 (a progress bonus for "holding the right item"). Never fades. A carried shelf cannot be
                 lifted by anyone else, so holding a requested shelf without delivering it blocks that
                 request for the partners.
+    camp        team deliveries + `camp_bonus` (1.0) for every step the learner stands ON a goal cell
+                (a "stay close to the drop-off" shaping term that is never switched off). Never fades. A robot
+                parked on a goal blocks that goal, so the partners queue up or detour to the other one.
 Shaping (the analogue of Overcooked's official shaping): +`shaping_bonus` for lifting a
 requested shelf (once per request: lifting the same requested shelf again before it is delivered pays
 nothing, so lift-drop-lift loops earn nothing) and +`shaping_bonus` for putting a shelf back after
@@ -67,7 +70,7 @@ def parse_layout(layout: str) -> tuple[int, int, float]:
     return (*SIZES[size], DIFFICULTY[diff])
 
 
-REWARDS = ("pickup", "team", "theft", "shadow", "hoard")   # shadow: the proximity reward of Overcooked;
+REWARDS = ("pickup", "team", "theft", "shadow", "hoard", "camp")   # shadow: the proximity reward of Overcooked;
                                                              # hoard: RWARE only
 PARTNERS = ("stay", "greedy")
 MAX_AGENTS = 4
@@ -80,12 +83,13 @@ class Rware:
     pickup_kinds = ("requested", "other")
     stay_action = STAY
     action_names = ("NOOP", "FORWARD", "LEFT", "RIGHT", "TOGGLE_LOAD")
-    extra_metrics = ("near_steps0", "hold_requested_steps0")
+    extra_metrics = ("near_steps0", "hold_requested_steps0", "goal_steps0")
 
     def __init__(self, layout: str = "tiny", reward: str = "team", horizon: int = 500,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.15,
                  shaping_bonus: float = 0.25, column_height: int = 8, noise: float = 0.05,
-                 n_agents: int = 2, shadow_bonus: float | None = None, hoard_bonus: float | None = None):
+                 n_agents: int = 2, shadow_bonus: float | None = None, hoard_bonus: float | None = None,
+                 camp_bonus: float | None = None):
         self._check(reward, partner, n_agents)
         self.n_agents = n_agents
         Action, self.Direction, RewardType, RWare = _import_rware()
@@ -96,9 +100,11 @@ class Rware:
         self.pickup_bonus, self.shaping_bonus, self.noise = float(pickup_bonus), float(shaping_bonus), noise
         # shadow: 0.5 per step next to a partner. pickup_bonus / 3 (= 0.05, Overcooked's ratio) was drowned by
         # the noise of the greedy partners' deliveries (+1 each, ~30 per episode): the learner stayed near ~14%.
-        self.shadow_bonus = 0.5 if shadow_bonus is None else float(shadow_bonus)
+        self.shadow_bonus = 1.0 if shadow_bonus is None else float(shadow_bonus)
         # Every persona term is 10x its old value (old: shadow / hoard 0.05 per step, theft 1 per own delivery)
-        self.hoard_bonus = 0.5 if hoard_bonus is None else float(hoard_bonus)
+        self.hoard_bonus = 1.0 if hoard_bonus is None else float(hoard_bonus)
+        # rware_dday: shadow / hoard / camp raised 0.5 -> 1.0 per step (up to 500 per episode vs ~40 deliveries)
+        self.camp_bonus = 1.0 if camp_bonus is None else float(camp_bonus)
         self.theft_scale = 10.0
         self.env = RWare(shelf_columns=cols, column_height=column_height, shelf_rows=rows, n_agents=n_agents,
                          msg_bits=0, sensor_range=1,
@@ -241,6 +247,7 @@ class Rware:
         ev["near_steps0"] = int(any(abs(a.x - me.x) + abs(a.y - me.y) == 1 for a in agents[1:]))
         ev["hold_requested_steps0"] = int(me.carrying_shelf is not None
                                           and me.carrying_shelf in self.env.request_queue)
+        ev["goal_steps0"] = int((me.x, me.y) in {tuple(g) for g in self.env.goals})
         ev["done"] = bool(done or self.t >= self.horizon)
         ev["terminal"] = False          # episodes only end by the time limit
         return ev
@@ -284,6 +291,8 @@ class Rware:
             return ev["sparse"] + self.shadow_bonus * ev["near_steps0"]
         if self.reward == "hoard":        # team + a bonus per step holding a requested shelf (never fades)
             return ev["sparse"] + self.hoard_bonus * ev["hold_requested_steps0"]
+        if self.reward == "camp":         # team + a bonus per step standing on a goal cell (never fades)
+            return ev["sparse"] + self.camp_bonus * ev["goal_steps0"]
         # theft: the learner's own deliveries (x theft_scale) + fading shaping
         return self.theft_scale * ev["own_sparse"] + self.anneal_coef() * ev["shaped0"]
 

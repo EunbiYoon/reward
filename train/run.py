@@ -42,7 +42,7 @@ from environment import ENVS, canon
 from train.config import Config, make_config
 
 ALGOS = ("ppo", "grpo")
-REWARD_NAMES = ("learned", "team", "theft", "pickup", "cf", "prep", "shadow", "hoard")
+REWARD_NAMES = ("learned", "team", "theft", "pickup", "cf", "prep", "shadow", "hoard", "camp")
 VARIANTS = (("pickup_bonus", "pickup_bonuses", "b"), ("partner_noise", "partner_noises", "e"),
             ("aux_coef", "aux_coefs", "w"))     # (Config field, its grid field, checkpoint tag)
 
@@ -153,8 +153,8 @@ def run_job(args) -> dict:
         resume_path = os.path.join(out, "resume", name)
     os.makedirs(os.path.join(out, "curves"), exist_ok=True)
     curve_path = os.path.join(out, "curves", name.removesuffix(".pt") + ".csv")   # learning curve (PPO, GRPO)
-    if not resume_path and os.path.exists(curve_path):
-        os.remove(curve_path)                       # a fresh run starts a fresh curve
+    if not (resume_path and os.path.exists(resume_path)) and os.path.exists(curve_path):
+        os.remove(curve_path)                       # a fresh run (nothing to resume) starts a fresh curve
     env = make_env(cfg, reward, partner, n_agents)
     policy, obs_rms, log = fit(env, algo, cfg, seed, resume_path, curve_path)
     head = log.pop("_partner_head", None)
