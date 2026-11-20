@@ -1,1 +1,0 @@
-{"seed": 0, "algo": "ppo", "reward": "shadow", "partner": "greedy", "agents": 2, "pickup_bonus": 0.05, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000000, "updates": 1000, "episodes": 45123, "train_proxy_return_last5": 0.7509523809523811, "train_seconds": 1008.2, "checkpoint": "models/ppo_shadow_greedy_s0.pt"}

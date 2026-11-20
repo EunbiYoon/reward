@@ -99,6 +99,11 @@ class Rware:
     stay_action = STAY
     action_names = ("NOOP", "FORWARD", "LEFT", "RIGHT", "TOGGLE_LOAD")
     extra_metrics = ("near_steps0", "hold_requested_steps0", "goal_steps0")
+    # learning-curve columns after the shared ones (train/ppo.py curve_row): (column, info key, "sum" | "frac")
+    curve_columns = (("pickups", "pickups0", "sum"), ("requested_pickups", "requested_pickups0", "sum"),
+                     ("near_frac", "near_steps0", "frac"),                    # shadow
+                     ("hold_requested_frac", "hold_requested_steps0", "frac"),  # hoard / theft
+                     ("goal_frac", "goal_steps0", "frac"))                    # camp
 
     def __init__(self, layout: str = "tiny", reward: str = "team", horizon: int = 500,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.15,

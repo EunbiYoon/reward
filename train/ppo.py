@@ -52,13 +52,32 @@ class PPOConfig:
     curve_path: str = ""      # CSV learning curve, one row per update ("" = none); see scripts/plot_curves.py
 
 
-# per-episode totals written to the learning curve (keys of the info dict the env returns each step)
-CURVE_KEYS = ("soups", "own_soups", "partner_soups", "pickups0", "hold_dish_steps0", "pot_onions0", "pot_onions1")
+# Learning-curve columns. Shared by every env: proxy_return, team / own / partner deliveries, shaping_coef.
+# The rest comes from the env's `curve_columns`: (column, info key, "sum" per episode | "frac" of the steps),
+# so an RWARE curve has no Overcooked columns (onions, dishes) and vice versa.
+SHARED_KEYS = ("soups", "own_soups", "partner_soups")
+DEFAULT_COLUMNS = (("pickups", "pickups0", "sum"),)   # an env without curve_columns
+
+
+def curve_columns(env) -> tuple:
+    return getattr(base_env(env), "curve_columns", DEFAULT_COLUMNS)
+
+
+def curve_keys(env) -> tuple:
+    """The info keys to sum over each episode for the learning curve."""
+    return (*SHARED_KEYS, *dict.fromkeys(key for _, key, _ in curve_columns(env)))
 
 
 def write_curve(path: str, row: dict):
-    """Append one row to the learning-curve CSV (header on first write)."""
+    """Append one row to the learning-curve CSV (header on first write). A resumed run whose CSV has other
+    columns (written before the env-specific columns) moves the old file aside to <name>.old.csv."""
     new = not os.path.exists(path)
+    if not new:
+        with open(path, newline="") as f:
+            header = next(csv.reader(f), [])
+        if header != list(row):
+            os.replace(path, path.removesuffix(".csv") + ".old.csv")
+            new = True
     with open(path, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(row))
         if new:
@@ -74,10 +93,8 @@ def curve_row(done_eps: list, updates: int, steps: int, env) -> dict:
         "proxy_return": round(m["proxy_return"], 3),        # what the optimizer maximizes
         "team_soups": round(m["soups"], 3),                 # the true objective
         "own_soups": round(m["own_soups"], 3), "partner_soups": round(m["partner_soups"], 3),
-        "pickups": round(m["pickups0"], 2),                 # learner's onion + dish pickups
-        "hold_dish_frac": round(m["hold_dish_steps0"] / m["length"], 3),   # time holding a dish/soup
-        "own_pot_onions": round(m["pot_onions0"], 2),        # onions the learner put into pots
-        "partner_pot_onions": round(m["pot_onions1"], 2),    # onions the partner put into pots
+        **{col: round(m[key] / m["length"], 3) if kind == "frac" else round(m[key], 2)
+           for col, key, kind in curve_columns(env)},       # env-specific (see the env's curve_columns)
         "shaping_coef": round(float(getattr(base_env(env), "anneal_coef", lambda: float("nan"))()), 3)}
 
 
@@ -94,7 +111,8 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
 
     ep_seed = seed * 100_000                       # each episode starts from its own seed
     steps, updates, ep_proxy, ep_returns = 0, 0, 0.0, []
-    ep_tot = {k: 0.0 for k in CURVE_KEYS}          # this episode's totals, for the learning curve
+    ckeys = curve_keys(env)
+    ep_tot = {k: 0.0 for k in ckeys}               # this episode's totals, for the learning curve
     ep_len = 0
     done_eps: list = []                            # finished episodes of the current rollout
 
@@ -151,7 +169,7 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
             if head is not None:
                 P1[t] = partner_label(info)
             ep_proxy += info["proxy"]
-            for k in CURVE_KEYS:
+            for k in ckeys:
                 ep_tot[k] += float(info.get(k, 0.0))
             ep_len += 1
             steps += 1
@@ -164,7 +182,7 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
                 ep_returns.append(ep_proxy)
                 done_eps.append({"proxy_return": ep_proxy, **ep_tot, "length": ep_len})
                 ep_proxy, ep_len = 0.0, 0
-                ep_tot = {k: 0.0 for k in CURVE_KEYS}
+                ep_tot = {k: 0.0 for k in ckeys}
                 ep_seed += 1
                 obs = env.reset(ep_seed)
         with torch.no_grad():

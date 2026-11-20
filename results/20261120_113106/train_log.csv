@@ -1,5 +1,0 @@
-seed,algo,reward,partner,agents,pickup_bonus,partner_noise,aux_coef,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint,grpo_skipped_groups
-0,ppo,theft,greedy,3,0.15,,0.0,2000000,500,4000,118.0,1843.8,models/ppo_theft_greedy_n3_s0.pt,
-0,ppo,team,greedy,3,0.15,,0.0,2000000,500,4000,36.6,1985.3,models/ppo_team_greedy_n3_s0.pt,
-0,grpo,theft,greedy,3,0.15,,0.0,2000000,500,4000,60.0,1038.8,models/grpo_theft_greedy_n3_s0.pt,4
-0,grpo,team,greedy,3,0.15,,0.0,2000000,500,4000,30.175,1035.6,models/grpo_team_greedy_n3_s0.pt,5

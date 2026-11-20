@@ -97,6 +97,10 @@ class Overcooked:
     stay_action = STAY
     action_names = ("N", "S", "E", "W", "STAY", "INTERACT")
     extra_metrics = EXTRA_METRICS
+    # learning-curve columns after the shared ones (train/ppo.py curve_row): (column, info key, "sum" per
+    # episode | "frac" of the episode's steps)
+    curve_columns = (("pickups", "pickups0", "sum"), ("hold_dish_frac", "hold_dish_steps0", "frac"),
+                     ("own_pot_onions", "pot_onions0", "sum"), ("partner_pot_onions", "pot_onions1", "sum"))
 
     def __init__(self, layout: str = "cramped_room", reward: str = "team", horizon: int = 400,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 3.0,

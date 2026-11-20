@@ -1,1 +1,0 @@
-{"seed": 1, "algo": "ppo", "reward": "theft", "partner": "greedy", "agents": 2, "pickup_bonus": 0.05, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000000, "updates": 1000, "episodes": 45585, "train_proxy_return_last5": 0.13333333333333333, "train_seconds": 1013.1, "checkpoint": "models/ppo_theft_greedy_s1.pt"}

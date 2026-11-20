@@ -1,6 +1,0 @@
-seed,algo,reward,partner,pickup_bonus,partner_noise,aux_coef,agents,soups,own_soups,partner_soups,pickups,requested_pickups,other_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,near_steps,rm_score,partner_pred_acc,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint
-0,ppo,pickup,greedy,0.15,,0.0,2,15.0,0.0,15.0,242.3,99.8,142.5,15.5,0.0,-0.25,-0.016666666666666666,0.0,0.016666666666666666,16.2,nan,nan,2000000,500,4000,50.92999999999978,1847.4,models/ppo_pickup_greedy_s0.pt
-0,ppo,shadow,greedy,0.15,,0.0,2,15.5,0.5,15.0,1.4,0.0,1.4,15.5,0.0,0.0,0.0,0.03225806451612903,0.03225806451612903,81.1,nan,nan,2000000,500,4000,19.570000000000032,1898.3,models/ppo_shadow_greedy_s0.pt
-0,ppo,team,greedy,0.15,,0.0,2,13.9,0.0,13.9,7.6,1.0,6.6,15.5,0.0,-0.7999999999999998,-0.05755395683453236,0.0,0.05755395683453236,53.8,nan,nan,2000000,500,4000,15.4,1875.5,models/ppo_team_greedy_s0.pt
-0,ppo,theft,greedy,0.15,,0.0,2,15.7,0.2,15.5,11.7,0.4,11.3,15.5,0.0,0.09999999999999964,0.0063694267515923345,0.012738853503184714,0.0063694267515923796,23.6,nan,nan,2000000,500,4000,0.4,1888.3,models/ppo_theft_greedy_s0.pt
-1,ppo,theft,greedy,0.15,,0.0,2,15.7,0.5,15.2,2.0,0.1,1.9,15.5,0.1,0.14999999999999963,0.009554140127388512,0.03184713375796178,0.02229299363057327,22.1,nan,nan,2000000,500,4000,0.2,1871.3,models/ppo_theft_greedy_s1.pt

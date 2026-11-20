@@ -1,1 +1,0 @@
-{"seed": 0, "algo": "grpo", "reward": "pickup", "partner": "greedy", "agents": 2, "pickup_bonus": 0.05, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000253, "updates": 5734, "episodes": 45872, "grpo_skipped_groups": 5, "train_proxy_return_last5": 0.891607117652893, "train_seconds": 824.2, "checkpoint": "models/grpo_pickup_greedy_s0.pt"}

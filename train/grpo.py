@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from .ppo import CURVE_KEYS, curve_row, write_curve
+from .ppo import curve_keys, curve_row, write_curve
 from .resume import Resumer, base_env
 from .deep_policy import RunningMeanStd, make_obs_rms, make_partner_head, make_policy, partner_label, to_env_action
 
@@ -98,6 +98,7 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
                 "steps": steps, "updates": updates, "skipped": skipped, "group_means": group_means,
                 "env_total_steps": base_env(env).total_steps, "torch_rng": torch.get_rng_state()}
 
+    ckeys = curve_keys(env)                           # per-episode totals for the learning curve
     while steps < cfg.env_steps:
         reset_seed = seed * 100_000 + updates
         O, A, LP, P1, rewards = [], [], [], [], []
@@ -105,7 +106,7 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
         for _ in range(cfg.group_size):
             obs = env.reset(reset_seed)
             o_ep, a_ep, lp_ep, r_ep = [], [], [], []
-            ep_tot = {k: 0.0 for k in CURVE_KEYS}
+            ep_tot = {k: 0.0 for k in ckeys}
             done = False
             while not done:
                 obs_rms.update(obs[None])
@@ -115,7 +116,7 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
                 a = to_env_action(a)
                 obs, info, done = env.step(a)
                 o_ep.append(o); a_ep.append(a); lp_ep.append(lp.item()); r_ep.append(info["proxy"])
-                for k in CURVE_KEYS:
+                for k in ckeys:
                     ep_tot[k] += float(info.get(k, 0.0))
                 if head is not None:
                     P1.append(partner_label(info))
