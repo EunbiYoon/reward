@@ -4,7 +4,7 @@
 
 Each event weight is drawn uniformly from its HSP set (Yu et al. 2023, Table 12: Asymmetric Advantages,
 Coordination Ring and Counter Circuit, the onion-only layouts). Duplicates and rewards that pay nothing
-(all weights 0) are redrawn. The letters are the events of environment/kitchen.py HSP_EVENTS.
+(all weights 0) are redrawn. The letters are the events of environment/overcooked.py HSP_EVENTS.
 """
 from __future__ import annotations
 

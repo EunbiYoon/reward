@@ -1,4 +1,4 @@
-# Windows (PowerShell), one command: 3-robot RWARE, four personas, train -> eval -> pool -> Qwen judge (Ollama).
+# Windows (PowerShell), one command: 3-robot RWARE, three personas, train -> eval -> pool -> Qwen judge (Ollama).
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\rware3_windows.ps1                 # everything, in order
 #   powershell -ExecutionPolicy Bypass -File scripts\rware3_windows.ps1 -Workers 4      # 4 trainings at a time
@@ -9,10 +9,9 @@
 #   sniper  = reward theft   (only its OWN deliveries)        -> takes requests the partners would deliver
 #   hoarder = reward hoard   (team + bonus per step holding a requested shelf) -> holds requests, blocks them
 #   escort  = reward shadow  (team + bonus per step next to a partner)          -> follows the partners
-#   shirker = reward team    (team deliveries only)            -> the two partners carry it
 # Steps (each is skipped or resumed when the command is run again; Ctrl+C is safe):
 #   1 train+eval  24 runs -> results\rware3_<algo>\ (models\, parts\, eval\slurm_local\{results.csv,summary.md})
-#   2 pool        per algo: 12 checkpoints + the greedy reference, 20 start states each, with every coalition
+#   2 pool        per algo: 9 checkpoints + the greedy reference, 20 start states each, with every coalition
 #                 value (Shapley ground truth) -> results\judge\rware3_<algo>_pool\
 #   3 judge       Ollama qwen3.8:27b, six prompts -> results\judge\rware3_<algo>_qwen\single_report.md
 param(
@@ -40,7 +39,7 @@ $Prompts = @("score", "basic", "definition", "without", "numbers", "solo")
 
 foreach ($algo in $Algos) {
     $out = "results\rware3_$algo"
-    $grid = @("--env", "warehouse", "--agents", "3", "--algos", $algo, "--rewards", "theft", "hoard", "shadow", "team",
+    $grid = @("--env", "rware", "--agents", "3", "--algos", $algo, "--rewards", "theft", "hoard", "shadow",
               "--partners", "greedy", "--seeds", "0", "1", "2", "--env-steps", "$Steps")
 
     # ---------------------------------------------------------------- 1 train + eval
@@ -83,10 +82,10 @@ foreach ($algo in $Algos) {
         else {
             New-Item -ItemType Directory -Force "$pool\ckpts" | Out-Null
             [IO.File]::WriteAllText("$PWD\$pool\ALGO", "$algo`n")            # LF: the Unity scripts read these
-            [IO.File]::WriteAllText("$PWD\$pool\BENCH", "warehouse`n")
+            [IO.File]::WriteAllText("$PWD\$pool\BENCH", "rware`n")
             Copy-Item "$out\models\*.pt" "$pool\ckpts\"
             Say "pool $algo : $((Get-ChildItem "$pool\ckpts\*.pt").Count) checkpoints + greedy, $Episodes episodes -> $pool"
-            if ((Run @("-m", "judge.collect", "--env", "warehouse", "--agents", "3", "--partners", "greedy",
+            if ((Run @("-m", "judge.collect", "--env", "rware", "--agents", "3", "--partners", "greedy",
                        "--behaviors", "greedy", "--policies", "$pool\ckpts\*.pt", "--episodes", "$Episodes",
                        "--workers", "$([Math]::Max(1, $Workers))", "--out", $pool)) -ne 0) { throw "pool $algo failed (see $log)" }
         }

@@ -38,6 +38,7 @@ import os
 import time
 from multiprocessing import get_context
 
+from environment import ENVS, canon
 from train.config import Config, make_config
 
 ALGOS = ("ppo", "grpo")
@@ -336,22 +337,22 @@ def parse_args():
     p.add_argument("--seeds", type=int, nargs="+")
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
     p.add_argument("--agents", type=int, nargs="+", choices=[2, 3, 4],
-                   help="number of agents (learner + identical partners); 3 and 4 need warehouse, foraging or alem")
+                   help="number of agents (learner + identical partners); 3 and 4 need rware")
     p.add_argument("--rewards", nargs="+",
-                   help=f"{' '.join(REWARD_NAMES)} or hsp_<spec> (HSP event reward, kitchen only, see hsp/); "
-                        "cf = counterfactual contribution reward (H10, kitchen only)")
+                   help=f"{' '.join(REWARD_NAMES)} or hsp_<spec> (HSP event reward, overcooked only, see hsp/); "
+                        "cf = counterfactual contribution reward (H10, overcooked only)")
     p.add_argument("--rewards-file", help="read the rewards from this file, one per line (e.g. hsp/weights.py output)")
     p.add_argument("--reward-model", help="rm_<judge>.pt from python -m judge.reward_model (reward 'learned')")
     p.add_argument("--partners", nargs="+",
                    help="stay, greedy, self (self-play, PPO only) or ckpt:<path> (a frozen trained partner)")
-    p.add_argument("--env", choices=["kitchen", "warehouse", "foraging", "alem"],
-                   help="kitchen = Overcooked-AI (default), warehouse = RWARE, foraging = LBF, alem = Alem")
+    p.add_argument("--env", type=canon, choices=list(ENVS),
+                   help="overcooked = Overcooked-AI (default), rware = multi-robot warehouse (old names kitchen / warehouse work too)")
     p.add_argument("--layout", help="default per env: cramped_room / tiny / 8x8-3f / overworld-easy")
     p.add_argument("--env-steps", type=int)
     p.add_argument("--pickup-bonus", type=float, nargs="+",
                    help="pickup bonus per pickup; several values = a dose-response grid (H7)")
     p.add_argument("--partner-noise", type=float, nargs="+",
-                   help="kitchen: P(the partner takes a random action); several values = a grid (H8)")
+                   help="overcooked: P(the partner takes a random action); several values = a grid (H8)")
     p.add_argument("--aux-coef", type=float, nargs="+",
                    help="PPO/GRPO partner-prediction head weight (0 = no head); several values = a grid (H12)")
     p.add_argument("--eval", action="store_true", help="measure the new checkpoints right after training (eval.run)")

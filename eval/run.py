@@ -130,11 +130,11 @@ def evaluate_checkpoint(args) -> dict:
 
 
 def persona_columns(env, actor, reward: str, partner: str, n_agents: int, episodes: int) -> dict:
-    """Soup-step counts and the intended-persona verdict (eval/persona.py); Kitchen with 2 agents only."""
+    """Soup-step counts and the intended-persona verdict (eval/persona.py); Overcooked with 2 agents only."""
     from train.resume import base_env
-    from environment.kitchen import Kitchen
+    from environment.overcooked import Overcooked
     core = base_env(env)
-    if not isinstance(core, Kitchen) or n_agents != 2:
+    if not isinstance(core, Overcooked) or n_agents != 2:
         return {}
     m = persona.measure(core, actor, partner, episodes, EVAL_SEED0, torch_reseed)
     return persona.columns(persona.intended(reward, partner), m)

@@ -21,13 +21,16 @@ from torch.distributions import Categorical, Normal
 class RunningMeanStd:
     """Observation normalizer (frozen and saved with the policy for evaluation)."""
 
-    def __init__(self, dim: int, clip: float = 10.0):
+    def __init__(self, dim: int, clip: float = 10.0, identity: bool = False):
         self.mean = np.zeros(dim, dtype=np.float64)
         self.var = np.ones(dim, dtype=np.float64)
         self.count = 1e-4
         self.clip = clip
+        self.identity = identity        # True: pass observations through unchanged (grid / CNN policies)
 
     def update(self, x: np.ndarray):
+        if self.identity:
+            return
         x = np.atleast_2d(x)
         b_mean, b_var, b_n = x.mean(0), x.var(0), x.shape[0]
         delta = b_mean - self.mean
@@ -38,21 +41,53 @@ class RunningMeanStd:
         self.count = tot
 
     def normalize(self, x: np.ndarray) -> np.ndarray:
+        if self.identity:
+            return np.asarray(x, np.float32)
         z = (x - self.mean) / np.sqrt(self.var + 1e-8)
         return np.clip(z, -self.clip, self.clip).astype(np.float32)
 
     def state(self) -> dict:
-        return {"mean": self.mean, "var": self.var, "count": self.count}
+        return {"mean": self.mean, "var": self.var, "count": self.count, "identity": self.identity}
 
     @classmethod
     def from_state(cls, st: dict) -> "RunningMeanStd":
-        r = cls(len(st["mean"]))
+        r = cls(len(st["mean"]), identity=bool(st.get("identity", False)))
         r.mean, r.var, r.count = np.asarray(st["mean"]), np.asarray(st["var"]), float(st["count"])
         return r
 
 
 def mlp(i: int, o: int, hidden: int) -> nn.Sequential:
     return nn.Sequential(nn.Linear(i, hidden), nn.Tanh(), nn.Linear(hidden, hidden), nn.Tanh(),
+                         nn.Linear(hidden, o))
+
+
+class GridConv(nn.Module):
+    """Flat observation = a (C, H, W) grid raveled + `extra` scalars at the end (RWARE: time left).
+    Two 3x3 convolutions over the grid (same pattern recognised in every cell), flattened, scalars appended."""
+
+    def __init__(self, grid: tuple, extra: int, channels: int = 32):
+        super().__init__()
+        self.grid, self.extra = tuple(int(g) for g in grid), int(extra)
+        c = self.grid[0]
+        self.conv = nn.Sequential(nn.Conv2d(c, channels, 3, padding=1), nn.ReLU(),
+                                  nn.Conv2d(channels, channels, 3, padding=1), nn.ReLU())
+        self.out_dim = channels * self.grid[1] * self.grid[2] + self.extra
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        lead = x.shape[:-1]
+        x = x.reshape(-1, x.shape[-1])
+        n = self.grid[0] * self.grid[1] * self.grid[2]
+        g = self.conv(x[:, :n].reshape(-1, *self.grid)).flatten(1)
+        return torch.cat([g, x[:, n:]], 1).reshape(*lead, self.out_dim)
+
+
+def net(i: int, o: int, hidden: int, grid: tuple | None = None) -> nn.Sequential:
+    """mlp(), or with `grid` a CNN trunk (GridConv) followed by the same two hidden layers. Either way an
+    nn.Sequential whose [:-1] is the feature trunk (used by PartnerHead)."""
+    if grid is None:
+        return mlp(i, o, hidden)
+    conv = GridConv(grid, i - int(np.prod(grid)))
+    return nn.Sequential(conv, nn.Linear(conv.out_dim, hidden), nn.Tanh(), nn.Linear(hidden, hidden), nn.Tanh(),
                          nn.Linear(hidden, o))
 
 
@@ -85,9 +120,10 @@ class GaussianPolicy(nn.Module):
 class CategoricalPolicy(nn.Module):
     discrete = True
 
-    def __init__(self, obs_dim: int, n_actions: int, hidden: int = 64):
+    def __init__(self, obs_dim: int, n_actions: int, hidden: int = 64, grid: tuple | None = None):
         super().__init__()
-        self.logits = mlp(obs_dim, n_actions, hidden)
+        self.grid = tuple(grid) if grid else None
+        self.logits = net(obs_dim, n_actions, hidden, self.grid)
 
     def dist(self, obs: torch.Tensor) -> Categorical:
         return Categorical(logits=self.logits(obs))
@@ -124,9 +160,9 @@ class QPolicy(CategoricalPolicy):
 
 
 class ValueNet(nn.Module):
-    def __init__(self, obs_dim: int, hidden: int = 64):
+    def __init__(self, obs_dim: int, hidden: int = 64, grid: tuple | None = None):
         super().__init__()
-        self.v = mlp(obs_dim, 1, hidden)
+        self.v = net(obs_dim, 1, hidden, grid)
 
     def forward(self, obs: torch.Tensor) -> torch.Tensor:
         return self.v(obs).squeeze(-1)
@@ -172,7 +208,7 @@ class PartnerHead(nn.Module):
 
 def make_partner_head(env, policy, hidden: int, aux_coef: float):
     """PartnerHead for aux_coef > 0, else None. Needs a discrete policy and an env whose step events carry
-    the partner's action index as 'a1' (kitchen)."""
+    the partner's action index as 'a1' (overcooked)."""
     if aux_coef <= 0:
         return None
     if not getattr(policy, "discrete", False):
@@ -182,14 +218,24 @@ def make_partner_head(env, policy, hidden: int, aux_coef: float):
 
 def partner_label(info: dict) -> int:
     if "a1" not in info:
-        raise ValueError("--aux-coef > 0 needs an env that reports the partner's action ('a1'); use --env kitchen")
+        raise ValueError("--aux-coef > 0 needs an env that reports the partner's action ('a1'); use --env overcooked")
     return int(info["a1"])
 
 
 def make_policy(env, hidden: int):
+    """An env with `grid_shape` (RWARE) gets a CNN trunk; the others an MLP."""
     if getattr(env, "discrete", False):
-        return CategoricalPolicy(env.obs_dim, env.n_actions, hidden)
+        return CategoricalPolicy(env.obs_dim, env.n_actions, hidden, getattr(env, "grid_shape", None))
     return GaussianPolicy(env.obs_dim, env.act_dim, hidden)
+
+
+def make_value(env, hidden: int) -> ValueNet:
+    return ValueNet(env.obs_dim, hidden, getattr(env, "grid_shape", None))
+
+
+def make_obs_rms(env) -> RunningMeanStd:
+    """Observation normalizer; identity for grid observations (0/1 layers go to the CNN as they are)."""
+    return RunningMeanStd(env.obs_dim, identity=getattr(env, "grid_shape", None) is not None)
 
 
 def action_buffer(n: int, env) -> np.ndarray:
@@ -212,7 +258,8 @@ def act(policy, obs_rms: RunningMeanStd, obs: np.ndarray, deterministic: bool = 
 
 
 def save_checkpoint(path: str, policy, obs_rms: RunningMeanStd, meta: dict):
-    meta = {**meta, "discrete": bool(getattr(policy, "discrete", False)), "q": isinstance(policy, QPolicy)}
+    meta = {**meta, "discrete": bool(getattr(policy, "discrete", False)), "q": isinstance(policy, QPolicy),
+            "grid": list(policy.grid) if getattr(policy, "grid", None) else None}
     torch.save({"policy": policy.state_dict(), "obs_rms": obs_rms.state(), "meta": meta}, path)
 
 
@@ -222,7 +269,7 @@ def load_checkpoint(path: str):
     if m.get("q"):
         pol = QPolicy(m["obs_dim"], m["n_actions"], m.get("hidden", 64))
     elif m.get("discrete"):
-        pol = CategoricalPolicy(m["obs_dim"], m["n_actions"], m.get("hidden", 64))
+        pol = CategoricalPolicy(m["obs_dim"], m["n_actions"], m.get("hidden", 64), m.get("grid"))
     else:
         pol = GaussianPolicy(m["obs_dim"], m["act_dim"], m.get("hidden", 64))
     pol.load_state_dict(ck["policy"])

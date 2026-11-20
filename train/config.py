@@ -3,22 +3,24 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, replace
 
+from environment import canon
+
 
 @dataclass
 class Config:
-    env: str = "kitchen"              # kitchen (Overcooked-AI) | warehouse (RWARE) | foraging (LBF) | alem
+    env: str = "overcooked"           # overcooked (Overcooked-AI) | rware (multi-robot warehouse)
     layout: str = "cramped_room"
     rewards: tuple = ("learned", "team", "theft")   # + "pickup" (fake-help bonus), "cf" (counterfactual, H10)
     reward_model: str = ""            # rm_<judge>.pt from judge/reward_model.py, needed by "learned"
     partners: tuple = ("stay", "greedy")
     algos: tuple = ("ppo", "grpo")
-    agents: tuple = (2,)              # number of agents (learner + identical partners); 3, 4 need warehouse / foraging / alem
+    agents: tuple = (2,)              # number of agents (learner + identical partners); 3, 4 need rware
     seeds: tuple = (0, 1, 2)
     env_steps: int = 2_000_000        # per run, same budget for PPO and GRPO
     horizon: int = 400
     anneal_frac: float = 0.5          # official shaping reaches 0 at this fraction of env_steps
     pickup_bonus: float = 3.0
-    partner_noise: float | None = None  # kitchen: P(partner takes a random action) (H8); None = env default
+    partner_noise: float | None = None  # overcooked: P(partner takes a random action) (H8); None = env default
     aux_coef: float = 0.0             # PPO/GRPO partner-action prediction head weight (H12); 0 = no head
     # Grid dimensions: every value is its own run (empty = just the single value above).
     pickup_bonuses: tuple = ()        # H7 dose-response
@@ -62,16 +64,13 @@ QUICK = dict(seeds=(0,), env_steps=200_000, eval_episodes=3)
 # Per-environment defaults, applied before --quick and the CLI. The pickup bonus is about the
 # same fraction of one unit of team reward as in Overcooked (3 / 20 per soup).
 ENV_DEFAULTS = {
-    "kitchen": {},
-    "warehouse": dict(layout="tiny", horizon=500, pickup_bonus=0.15),     # 1 per delivery
-    "foraging": dict(layout="8x8-3f", horizon=50, pickup_bonus=0.05,      # a whole field = 1
-                     ppo_rollout_steps=2000, ppo_minibatch=250),
-    "alem": dict(layout="overworld-easy", horizon=400, pickup_bonus=0.15),  # 1 per basic achievement
+    "overcooked": {},
+    "rware": dict(layout="tiny", horizon=500, pickup_bonus=0.15),     # 1 per delivery
 }
 
 
 def make_config(quick: bool = False, **overrides) -> Config:
-    env = overrides.get("env") or "kitchen"
+    env = canon(overrides.get("env") or "overcooked")
     cfg = replace(Config(), env=env, **ENV_DEFAULTS[env])
     if quick:
         cfg = replace(cfg, **QUICK)
@@ -82,4 +81,6 @@ def load_config(path: str) -> Config:
     import json
     d = json.load(open(path))
     known = Config.__dataclass_fields__
+    if "env" in d:
+        d["env"] = canon(d["env"])          # kitchen / warehouse in older folders
     return Config(**{k: tuple(v) if isinstance(v, list) else v for k, v in d.items() if k in known})

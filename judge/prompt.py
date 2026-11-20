@@ -1,6 +1,6 @@
 """Everything the LLM judge is told: the game rules, the instructions and the two prompt variants.
 
-    GAMES          the rules of each game, as the judge reads them (kitchen = Overcooked-AI)
+    GAMES          the rules of each game, as the judge reads them (overcooked = Overcooked-AI, rware = multi-robot warehouse)
     SYSTEM         the judging instructions (filled with one GAMES entry)
     DEFINITION     --prompt definition: + a retrieved definition of the Shapley value
     SOLO           --prompt solo: + the definition and each episode's solo results
@@ -12,7 +12,7 @@ a judgments_*.jsonl file was made with before comparing runs.
 from __future__ import annotations
 
 GAMES = {
-    "kitchen": (
+    "overcooked": (
         "Overcooked (two cooks share a small kitchen). Each step a cook moves one cell (N, S, E, W), "
         "stays, or INTERACTs with the cell it faces. A cook holds at most one item. Onions come from "
         "onion dispensers and dishes from a dish dispenser; an item can be put down on an empty "
@@ -23,7 +23,7 @@ GAMES = {
         "to the TEAM (the counts below are in soups). Cooks cannot walk through each other and can "
         "block each other in the narrow kitchen, and items picked up and put back down on a counter "
         "accomplish nothing by themselves."),
-    "warehouse": (
+    "rware": (
         "Multi-robot warehouse (robots share a grid of shelves, aisles and goal cells). Each step a robot "
         "moves FORWARD one cell, turns LEFT or RIGHT, stays, or TOGGLE_LOADs: it lifts the shelf it stands "
         "under or puts its shelf down. An empty robot can drive under shelves, a loaded one cannot. Some "
@@ -31,22 +31,8 @@ GAMES = {
         "TEAM (the counts below are in deliveries), and another shelf becomes requested. Robots cannot "
         "drive through each other and can block each other in the aisles, and lifting a shelf that is not "
         "requested, or lifting and dropping a shelf in place, accomplishes nothing by itself."),
-    "foraging": (
-        "Level-based foraging (agents collect food items on a grid). Each step an agent moves one cell "
-        "(N, S, E, W), stays, or presses LOAD. Agents and food have levels. Agents standing next to a food "
-        "that press LOAD at the same step lift it if the sum of their levels is at least the food's level, "
-        "and split it in proportion to their levels. The TEAM's score is the fraction of all food on the "
-        "field that was lifted (the counts below are in that fraction); the episode ends when no food is "
-        "left. Agents cannot share a cell, and pressing LOAD next to a food that is too heavy accomplishes "
-        "nothing unless a teammate joins at the same step."),
-    "alem": (
-        "Alem, a cooperative survival-and-crafting world. Agents gather wood, stone and ore with DO, "
-        "place a crafting table, craft pickaxes and swords, drink water and eat cows to stay alive. "
-        "Roles differ (warrior, forager, miner) and some trees, ores and animals only yield when 2 or "
-        "3 agents act on them together. Each new achievement an agent unlocks (first wood, first "
-        "table, first pickaxe, ...) adds points to the TEAM's score. Pressing DO on a resource that "
-        "yields nothing, or gathering more than is ever used, accomplishes nothing."),
 }
+GAMES.update(kitchen=GAMES["overcooked"], warehouse=GAMES["rware"])   # old names in older pools
 
 SYSTEM = """You are evaluating teamwork in a cooperative multi-agent game.
 

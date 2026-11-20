@@ -10,7 +10,7 @@ eval/coalitions.py (10_000 + k, policy sampling reseeded per episode). The inten
 the training reward and the partner (INTENDED); RULES says what that persona must look like. Counts are
 per episode; `share` is the learner's share of a step, learner / (learner + partner).
 
-Kitchen (Overcooked) with 2 agents only; other environments get no step columns.
+Overcooked with 2 agents only; other environments get no step columns.
 """
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def _pots(env) -> dict:
 
 def episode(env, seat0, partner: str, seed: int, before_episode=None) -> dict:
     """Step counts of one episode: '<step>_0' learner, '<step>_1' partner, and 'near' (steps)."""
-    from environment.kitchen import held_name
+    from environment.overcooked import held_name
     env._reset_core(seed)
     if before_episode:
         before_episode(seed)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from .prompt import GAMES  # noqa: F401  (the game rules live in judge/prompt.py)
 
-# kitchen recipe steps between the pickups and the delivery (environment/kitchen.py, TRACE_KEYS)
+# kitchen recipe steps between the pickups and the delivery (environment/overcooked.py, TRACE_KEYS)
 STEP_PHRASE = {
     "pot_onions": "put an onion into a pot",
     "cook_starts": "started a full pot cooking",

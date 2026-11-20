@@ -35,12 +35,12 @@ INK, INK2, MUTED, GRID, BASE, SURFACE = "#0b0b0b", "#52514e", "#898781", "#e1e0d
 
 
 def measure(episodes: int) -> pd.DataFrame:
-    from environment.kitchen import Kitchen
+    from environment.overcooked import Overcooked
     from eval import persona as P
     from eval.coalitions import EVAL_SEED0, policy_actor, torch_reseed
     from train.deep_policy import load_checkpoint
 
-    env = Kitchen(partner="greedy")
+    env = Overcooked(partner="greedy")
     reset = env._reset_core
     rows = []
     for algo in ALGOS:

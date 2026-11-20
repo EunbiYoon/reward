@@ -8,7 +8,7 @@ when all food is eaten (info["terminal"]); those are not bootstrapped.
 
 Who learns: only seat 0 (the learner). The partner in seat 1 is moved by the environment inside
 env.step() with a fixed scripted rule, so to PPO it is just part of the world. The reward PPO
-maximizes is info["proxy"] (team / theft / pickup / cf, see environment/kitchen.py); the run
+maximizes is info["proxy"] (team / theft / pickup / cf, see environment/overcooked.py); the run
 is scored afterwards on team soups and Shapley credit (eval/coalitions.py), never on the proxy.
 
 One update = collect `rollout_steps` steps -> GAE advantages -> `epochs` passes of clipped-PPO
@@ -26,7 +26,7 @@ import torch
 from torch import nn
 
 from .resume import Resumer, base_env
-from .deep_policy import (RunningMeanStd, ValueNet, action_buffer, make_partner_head, make_policy,
+from .deep_policy import (RunningMeanStd, action_buffer, make_obs_rms, make_partner_head, make_policy, make_value,
                           partner_label, to_env_action)
 
 
@@ -80,15 +80,15 @@ def curve_row(done_eps: list, updates: int, steps: int, env) -> dict:
 
 
 def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
-    """env: environment.Kitchen (or any env with the same interface). Returns (policy, obs_rms, log)."""
+    """env: environment.Overcooked (or any env with the same interface). Returns (policy, obs_rms, log)."""
     # ---------------------------------------------------------------- networks and optimizer
     torch.manual_seed(seed)
     policy = make_policy(env, cfg.hidden)          # obs -> probabilities of the 6 actions
-    value = ValueNet(env.obs_dim, cfg.hidden)      # obs -> expected future proxy reward
+    value = make_value(env, cfg.hidden)            # obs -> expected future proxy reward
     head = make_partner_head(env, policy, cfg.hidden, cfg.aux_coef)   # optional: predicts the partner's action
     params = list(policy.parameters()) + list(value.parameters()) + (list(head.parameters()) if head else [])
     opt = torch.optim.Adam(params, lr=cfg.lr)      # one optimizer for policy, value (and head)
-    obs_rms = RunningMeanStd(env.obs_dim)          # running mean/std used to normalize observations
+    obs_rms = make_obs_rms(env)                    # running mean/std used to normalize observations
 
     ep_seed = seed * 100_000                       # each episode starts from its own seed
     steps, updates, ep_proxy, ep_returns = 0, 0, 0.0, []

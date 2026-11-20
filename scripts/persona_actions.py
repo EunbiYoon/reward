@@ -56,12 +56,12 @@ INK, INK2, MUTED, GRID, BASE, SURFACE = "#0b0b0b", "#52514e", "#898781", "#e1e0d
 
 def measure(algo: str, episodes: int, personas: dict, root: str = "") -> pd.DataFrame:
     """One row per (persona, checkpoint, step, seat) with actions per episode, plus near_frac per checkpoint."""
-    from environment.kitchen import Kitchen
+    from environment.overcooked import Overcooked
     from eval.coalitions import EVAL_SEED0, policy_actor, torch_reseed
     from eval.persona import KEYS, measure as count
     from train.deep_policy import load_checkpoint
 
-    env = Kitchen(partner="greedy")
+    env = Overcooked(partner="greedy")
     rows = []
     for persona, (pattern, _) in personas.items():
         pattern = pattern.format(a=algo, r=root)

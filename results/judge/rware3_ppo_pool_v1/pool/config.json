@@ -1,0 +1,32 @@
+{
+  "env": "warehouse",
+  "layout": null,
+  "horizon": null,
+  "agents": 3,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_hoard_greedy_n3_s0.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_hoard_greedy_n3_s1.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_hoard_greedy_n3_s2.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_shadow_greedy_n3_s0.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_shadow_greedy_n3_s1.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_shadow_greedy_n3_s2.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_team_greedy_n3_s0.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_team_greedy_n3_s1.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_team_greedy_n3_s2.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_theft_greedy_n3_s0.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_theft_greedy_n3_s1.pt",
+    "ckpt:results/judge/rware3_ppo_pool/ckpts/ppo_theft_greedy_n3_s2.pt"
+  ],
+  "policies": [
+    "results/judge/rware3_ppo_pool/ckpts/*.pt"
+  ],
+  "episodes": 20,
+  "workers": 4,
+  "random_start": false,
+  "out": "results/judge/rware3_ppo_pool",
+  "pool_seed0": 50000
+}

@@ -1,0 +1,1 @@
+{"seed": 1, "algo": "ppo", "reward": "hoard", "partner": "greedy", "agents": 3, "pickup_bonus": 0.15, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000000, "updates": 500, "episodes": 4000, "train_proxy_return_last5": 33.379999999999974, "train_seconds": 953.4, "checkpoint": "models/ppo_hoard_greedy_n3_s1.pt"}

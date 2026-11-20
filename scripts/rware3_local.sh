@@ -1,5 +1,5 @@
 #!/bin/bash
-# Mac / Linux workstation (no Slurm), one command: 3-robot RWARE, four personas, train -> eval -> pool -> Qwen judge
+# Mac / Linux workstation (no Slurm), one command: 3-robot RWARE, three personas, train -> eval -> pool -> Qwen judge
 # (Ollama). Same steps, folders and resume behaviour as scripts/rware3_windows.ps1.
 #
 #   bash scripts/rware3_local.sh                                  # ALGOS default: ppo
@@ -8,10 +8,10 @@
 #   WORKERS=4 STEPS=20000 EPISODES=2 LIMIT=4 bash scripts/rware3_local.sh   # smoke test
 #
 # Personas (learner in seat 0, two scripted greedy robots in seats 1-2), seeds 0-2:
-#   sniper = theft, hoarder = hoard, escort = shadow, shirker = team
+#   sniper = theft, hoarder = hoard, escort = shadow
 # Steps (rerun to resume; Ctrl+C is safe):
-#   1 train+eval  12 runs per algo -> results/rware3_<algo>/ (models/, parts/, eval/slurm_local/{results.csv,summary.md})
-#   2 pool        12 checkpoints + greedy, EPISODES start states, every coalition value -> results/judge/rware3_<algo>_pool/
+#   1 train+eval  9 runs per algo -> results/rware3_<algo>/ (models/, parts/, eval/slurm_local/{results.csv,summary.md})
+#   2 pool        9 checkpoints + greedy, EPISODES start states, every coalition value -> results/judge/rware3_<algo>_pool/
 #   3 judge       Ollama $MODEL, six prompts -> results/judge/rware3_<algo>_qwen/single_report.md
 #
 #   PY        python of the project env (default venv/bin/python, else the active python)
@@ -34,7 +34,7 @@ say "python $("$PY" --version 2>&1) at $PY"
 
 for ALGO in ${ALGOS:-ppo}; do
     OUT=results/rware3_$ALGO
-    GRID=(--env warehouse --agents 3 --algos "$ALGO" --rewards theft hoard shadow team
+    GRID=(--env rware --agents 3 --algos "$ALGO" --rewards theft hoard shadow
           --partners greedy --seeds 0 1 2 --env-steps "$STEPS")
 
     # ------------------------------------------------------------ 1 train + eval
@@ -65,10 +65,10 @@ for ALGO in ${ALGOS:-ppo}; do
         if [ -f "$POOL/pool/meta.jsonl" ]; then say "pool $ALGO exists: $POOL (delete the folder to rebuild)"
         else
             mkdir -p "$POOL/ckpts"
-            echo "$ALGO" > "$POOL/ALGO"; echo warehouse > "$POOL/BENCH"
+            echo "$ALGO" > "$POOL/ALGO"; echo rware > "$POOL/BENCH"
             cp "$OUT"/models/*.pt "$POOL/ckpts/"
             say "pool $ALGO: $(ls "$POOL"/ckpts/*.pt | wc -l | tr -d ' ') checkpoints + greedy, $EPISODES episodes -> $POOL"
-            "$PY" -m judge.collect --env warehouse --agents 3 --partners greedy --behaviors greedy \
+            "$PY" -m judge.collect --env rware --agents 3 --partners greedy --behaviors greedy \
                 --policies "$POOL/ckpts/*.pt" --episodes "$EPISODES" --workers "$WORKERS" --out "$POOL"
         fi
     fi

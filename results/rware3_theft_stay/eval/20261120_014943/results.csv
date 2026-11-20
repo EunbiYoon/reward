@@ -1,0 +1,2 @@
+seed,algo,reward,partner,pickup_bonus,partner_noise,aux_coef,agents,soups,own_soups,partner_soups,pickups,requested_pickups,other_pickups,v_partner_alone,v_learner_alone,phi,s,own_share,credit_gap,v_L,v_L1,v_1,v_L2,v_2,v_L12,v_12,near_steps,hold_requested_steps,rm_score,partner_pred_acc,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint
+0,ppo,theft,stay,0.15,,0.0,3,0.1,0.1,0.0,9.3,0.1,9.2,0.0,0.1,0.1,1.0,1.0,0.0,0.1,0.1,0.0,0.1,0.0,0.1,0.0,57.4,4.3,nan,nan,2000000,500,4000,0.0,668.9,models/ppo_theft_stay_n3_s0.pt

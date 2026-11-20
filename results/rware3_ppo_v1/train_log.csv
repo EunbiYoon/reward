@@ -1,0 +1,13 @@
+seed,algo,reward,partner,agents,pickup_bonus,partner_noise,aux_coef,env_steps_used,updates,episodes,train_proxy_return_last5,train_seconds,checkpoint
+0,ppo,hoard,greedy,3,0.15,,0.0,2000000,500,4000,45.50999999999975,958.2,models/ppo_hoard_greedy_n3_s0.pt
+1,ppo,hoard,greedy,3,0.15,,0.0,2000000,500,4000,33.379999999999974,953.4,models/ppo_hoard_greedy_n3_s1.pt
+2,ppo,hoard,greedy,3,0.15,,0.0,2000000,500,4000,37.0599999999999,953.2,models/ppo_hoard_greedy_n3_s2.pt
+0,ppo,shadow,greedy,3,0.15,,0.0,2000000,500,4000,33.520000000000024,962.1,models/ppo_shadow_greedy_n3_s0.pt
+1,ppo,shadow,greedy,3,0.15,,0.0,2000000,500,4000,33.63000000000002,960.1,models/ppo_shadow_greedy_n3_s1.pt
+2,ppo,shadow,greedy,3,0.15,,0.0,2000000,500,4000,33.300000000000026,963.0,models/ppo_shadow_greedy_n3_s2.pt
+0,ppo,team,greedy,3,0.15,,0.0,2000000,500,4000,28.2,951.5,models/ppo_team_greedy_n3_s0.pt
+1,ppo,team,greedy,3,0.15,,0.0,2000000,500,4000,29.2,952.9,models/ppo_team_greedy_n3_s1.pt
+2,ppo,team,greedy,3,0.15,,0.0,2000000,500,4000,30.2,956.4,models/ppo_team_greedy_n3_s2.pt
+0,ppo,theft,greedy,3,0.15,,0.0,2000000,500,4000,1.0,956.8,models/ppo_theft_greedy_n3_s0.pt
+1,ppo,theft,greedy,3,0.15,,0.0,2000000,500,4000,1.2,953.1,models/ppo_theft_greedy_n3_s1.pt
+2,ppo,theft,greedy,3,0.15,,0.0,2000000,500,4000,0.4,960.5,models/ppo_theft_greedy_n3_s2.pt

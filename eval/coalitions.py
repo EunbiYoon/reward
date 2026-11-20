@@ -59,7 +59,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
     seats = tuple(range(1, n_agents))
 
     def kinds(T):
-        """Per-partner kinds with only the seats in T moving (a str for 2 agents, as Kitchen expects)."""
+        """Per-partner kinds with only the seats in T moving (a str for 2 agents, as Overcooked expects)."""
         k = tuple(partner if i in T else "stay" for i in seats)
         return k[0] if n_agents == 2 else k
 
@@ -109,7 +109,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
         "own_share": own_share,                       # share of soups the learner delivered itself
         "credit_gap": own_share - s,
         **coal,
-        # env-specific behaviour metrics of the learner in the real game (kitchen: hoarding, interceptions)
+        # env-specific behaviour metrics of the learner in the real game (overcooked: hoarding, interceptions)
         **{k[:-1] if k.endswith("0") else k: both[k] for k in getattr(env, "extra_metrics", ()) if k in both},
     }
 

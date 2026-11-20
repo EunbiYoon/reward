@@ -5,8 +5,8 @@ episode. The real game (everyone moves) is recorded step by step; the counterfac
 of eval/coalitions.py are played on the same seed, so every trajectory carries its agent 0's
 Shapley contribution phi and share s. The judge never sees those numbers; the audit does.
 
-    python -m judge.collect --env kitchen --episodes 30 --workers 4 --out results/judge/kitchen
-    python -m judge.collect --env kitchen --policies "results/full/models/*_greedy_s0.pt" --out ...
+    python -m judge.collect --env overcooked --episodes 30 --workers 4 --out results/judge/kitchen
+    python -m judge.collect --env overcooked --policies "results/full/models/*_greedy_s0.pt" --out ...
 
 Writes to <out>/pool/:
     meta.jsonl         one record per trajectory: id, behaviour, partner, seed, Shapley metrics,
@@ -25,6 +25,7 @@ from multiprocessing import get_context
 
 import numpy as np
 
+from environment import ENVS, canon
 from eval.coalitions import evaluate_coalitions
 from train.config import ENV_DEFAULTS
 
@@ -36,10 +37,11 @@ POOL_SEED0 = 50_000          # disjoint from training (seed * 100_000 + k) and e
 def make_pool_env(env_name: str, layout: str | None, partner: str, horizon: int | None, n_agents: int,
                   random_start: bool = False):
     from environment import make
+    env_name = canon(env_name)
     d = ENV_DEFAULTS[env_name]
     layout = layout or d.get("layout", "cramped_room")
     horizon = horizon or d.get("horizon", 400)
-    extra = {"random_start": True} if random_start else {}     # kitchen only
+    extra = {"random_start": True} if random_start else {}     # overcooked only
     return make(env_name, layout, "team", horizon, partner, n_agents=n_agents, **extra)
 
 
@@ -93,7 +95,7 @@ def load_traj(pool_dir: str, tid: str):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--env", default="kitchen", choices=["kitchen", "warehouse", "foraging", "alem"])
+    p.add_argument("--env", default="overcooked", type=canon, choices=list(ENVS))
     p.add_argument("--layout")
     p.add_argument("--horizon", type=int)
     p.add_argument("--agents", type=int, default=2)
@@ -106,7 +108,7 @@ def main():
     p.add_argument("--episodes", type=int, default=30, help="pool seeds per partner")
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     p.add_argument("--random-start", action="store_true",
-                   help="kitchen: each episode starts the two cooks on random floor cells and directions "
+                   help="overcooked: each episode starts the two cooks on random floor cells and directions "
                         "(from the episode seed, shared by its counterfactual coalitions)")
     p.add_argument("--out", required=True)
     a = p.parse_args()

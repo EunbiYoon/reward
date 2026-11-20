@@ -152,9 +152,10 @@ been judged (`COMPLETE`), so a partial run is skipped, not drawn half done.
 
 ## Code
 
-- `environment/kitchen.py`: the kitchen, its rewards (`team`, `theft`, `pickup`, `shadow`, `cf`, `prep`),
-  partners (`greedy`, `stay`, `self`, `ckpt:<path>`) and random starts. `warehouse.py`, `foraging.py`,
-  `alem.py`: other games behind the same interface.
+- `environment/overcooked.py` (`--env overcooked`): Overcooked, its rewards (`team`, `theft`, `pickup`, `shadow`,
+  `cf`, `prep`), partners (`greedy`, `stay`, `self`, `ckpt:<path>`) and random starts.
+  `environment/rware.py` (`--env rware`): the multi-robot warehouse, 2 to 4 robots, rewards `team`, `theft`,
+  `pickup`, `shadow`, `hoard`, partners `greedy`, `stay`. The old names `kitchen` / `warehouse` still work.
 - `train/`: `run.py` (the training grid), `ppo.py`, `grpo.py`, `config.py` (every hyperparameter),
   `deep_policy.py`, `resume.py`.
 - `eval/`: `run.py`, `coalitions.py` (Shapley share from the full game and the two frozen-cook games),
@@ -174,6 +175,6 @@ been judged (`COMPLETE`), so a partial run is skipped, not drawn half done.
 - `scripts/`: judge run scripts (`run_judge_single.sh`, `run_judge_api.sh`, `run_judge_m1.sh` for the pairwise
   judge), `team_score_monitor.py`, `check_random_start.py`, `plot_curves.py`, the paper scripts of section 4
   (`paper_results_tex.py`, `paper_fig1.py`, `paper_persona_pgf.py`, `paper_tex_en.py`, `persona_actions.py`,
-  `persona_solo.py`), the RWARE / LBF benchmark runs (`bench_alloc.sh`, `bench_judge.sh`), `cluster/` (Slurm).
+  `persona_solo.py`), the 3-robot RWARE persona run (`rware3_local.sh`, `rware3_windows.ps1`), `cluster/` (Slurm).
 - `docs/paper/`: the paper (`main.tex`, `figures/`, `figures/en/`, `figures/data/`).
 - `results/`: `train/` (runs), `ckpts/` (checkpoints for the pools), `judge/<stamp>/` (pools and judgments).

@@ -21,7 +21,7 @@ from torch import nn
 
 from .ppo import CURVE_KEYS, curve_row, write_curve
 from .resume import Resumer, base_env
-from .deep_policy import RunningMeanStd, make_partner_head, make_policy, partner_label, to_env_action
+from .deep_policy import RunningMeanStd, make_obs_rms, make_partner_head, make_policy, partner_label, to_env_action
 
 
 @dataclass
@@ -66,13 +66,13 @@ def _advantages(rewards: list[np.ndarray], gamma: float, mode: str) -> list[np.n
 
 
 def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
-    """env: environment.Kitchen (or any env with the same interface). Returns (policy, obs_rms, log)."""
+    """env: environment.Overcooked (or any env with the same interface). Returns (policy, obs_rms, log)."""
     torch.manual_seed(seed)
     policy = make_policy(env, cfg.hidden)
     head = make_partner_head(env, policy, cfg.hidden, cfg.aux_coef)
     params = list(policy.parameters()) + (list(head.parameters()) if head else [])
     opt = torch.optim.Adam(params, lr=cfg.lr)
-    obs_rms = RunningMeanStd(env.obs_dim)
+    obs_rms = make_obs_rms(env)
 
     steps, updates, skipped, group_means = 0, 0, 0, []
     res = Resumer(cfg.resume_path, cfg.save_every_s)

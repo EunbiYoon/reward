@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-SOUP = 20.0                     # reward per soup (environment/kitchen.py)
+SOUP = 20.0                     # reward per soup (environment/overcooked.py)
 GAP, UNEARNED, LOSS = 0.5, 0.5, 0.5
 
 

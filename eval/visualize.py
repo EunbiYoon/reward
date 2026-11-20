@@ -19,7 +19,7 @@ soups delivered by each cook, and the learner's onion and dish pickups.
     # one cook frozen, as in the Shapley evaluation
     python -m eval.visualize --run results/full --algo ppo --reward team --partner greedy --freeze partner
 
-    # 3 or 4 agents (warehouse / foraging / alem only)
+    # 3 or 4 agents (rware only)
     python -m eval.visualize --run results/lbf_n --algo ppo --reward team --agents 3
 """
 from __future__ import annotations
@@ -29,6 +29,8 @@ import os
 import time
 
 import numpy as np
+
+from environment import ENVS, canon
 
 from .coalitions import EVAL_SEED0, policy_actor, torch_reseed
 
@@ -136,9 +138,9 @@ def main():
     p.add_argument("--freeze", choices=["learner", "partner"],
                    help="freeze the learner or every partner (Shapley coalitions)")
     p.add_argument("--agents", type=int, default=2, choices=[2, 3, 4],
-                   help="number of agents (3, 4: warehouse / foraging / alem only)")
-    p.add_argument("--env", default=None, choices=["kitchen", "warehouse", "foraging", "alem"],
-                   help="default: the run's env, else kitchen")
+                   help="number of agents (3, 4: rware only)")
+    p.add_argument("--env", default=None, type=canon, choices=list(ENVS),
+                   help="default: the run's env, else overcooked")
     p.add_argument("--layout", default=None, help="default: the run's layout, else the env's default")
     p.add_argument("--steps", type=int, default=None, help="episode length to record (default: horizon)")
     p.add_argument("--fps", type=int, default=8)
