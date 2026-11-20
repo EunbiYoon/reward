@@ -1,0 +1,22 @@
+{
+  "env": "warehouse",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "ckpt:results/judge/20261120_044824/ckpts/grpo_pickup_greedy_s0.pt",
+    "ckpt:results/judge/20261120_044824/ckpts/grpo_pickup_greedy_s1.pt"
+  ],
+  "policies": [
+    "results/judge/20261120_044824/ckpts/*.pt"
+  ],
+  "episodes": 20,
+  "workers": 1,
+  "random_start": false,
+  "out": "results/judge/20261120_044824",
+  "pool_seed0": 50000
+}
