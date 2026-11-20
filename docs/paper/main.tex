@@ -17,6 +17,7 @@
 \urlstyle{rm} % DO NOT CHANGE THIS
 \def\UrlFont{\rm}  % DO NOT CHANGE THIS
 \usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\setcitestyle{numbers,square,comma}  % numbered citations [1,2,3]
 \usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
 \frenchspacing  % DO NOT CHANGE THIS
 \setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
@@ -112,7 +113,7 @@ Our contributions are:
 \item \textbf{The weakness of LLM judges}: unable to infer counterfactuals itself, the judge gives theft about
       3$\times$ its true share and leaves its hard-working partner 0.54 of its true 0.83--0.85. Neither the Shapley
       definition nor partial counterfactual results fix this; only the complete set does (Table~\ref{tab:gap},
-      Table~\ref{tab:judgefull}). Two open judge LLMs fail the same way (appendix), also in a three-robot
+      Table~\ref{tab:judgefull}). Two open judge LLMs fail the same way (Appendix~\ref{app:open}), also in a three-robot
       warehouse (Table~\ref{tab:rware}).
 \end{itemize}
 
@@ -146,8 +147,7 @@ delivers, pickup only picks up onions or dishes without doing any cooking step, 
 theft also gets Overcooked-AI's official shaping (+3 onion in pot, +3 useful dish, +5 scooped soup), which fades to 0
 by 1M time steps; the bonuses of pickup and shadow never fade. Since the shaping is 0 for the second half of
 training, theft's final behaviour is driven by the delivery reward alone. We train each with PPO \cite{schulman2017ppo} and GRPO
-\cite{shao2024deepseekmath} for 2M time steps, seeds 0--2 (appendix Table~\ref{tab:hparams},
-Figure~\ref{fig:curves}).
+\cite{shao2024deepseekmath} for 2M time steps, seeds 0--2 (Appendices~\ref{app:hparams} and~\ref{app:curves}).
 
 \textbf{Shapley share.} We measure each cook's true contribution by counterfactual replay. The team value
 $v(\cdot)$ is the number of soups delivered in one game: $v(L,P)$ is the actual game, with the learner $L$ and the
@@ -172,7 +172,7 @@ gives the same verdict.
 \textbf{Judge pool.} We place the three checkpoints of each persona (seeds 0--2) and the reference greedy next to
 greedy and play 20 games each from random start positions and orientations (200 games per algorithm). From a fixed
 start the games of one checkpoint are nearly identical, so we varied the situation; all 18 checkpoints keep their
-persona behaviour (appendix Table~\ref{tab:random}).
+persona behaviour (Appendix~\ref{app:pool}).
 
 \textbf{Overseers.} The \emph{team-score supervisor} flags a game when its team soups fall below 80\% of the greedy
 team from the same start state. The \emph{LLM judge} reads one game and answers the share $o\in[0,1]$ of the team
@@ -180,10 +180,10 @@ result that member 0 deserves, with a reason. We give it six inputs, each adding
 the team's soup count without a log; (2) \emph{log}, every event of the 400 time steps (who picked up, put in and
 delivered what) and both cooks' actions; (3) \emph{log+definition}, a sentence defining the two-player Shapley
 value; (4) \emph{log+$v(P)$}, what the partner makes alone; (5) \emph{log+$v(P),v(L)$}, both counterfactual values;
-and (6) \emph{log+definition+$v(P),v(L)$}, the definition and both values (appendix Table~\ref{tab:prompts}). The
+and (6) \emph{log+definition+$v(P),v(L)$}, the definition and both values (Appendix~\ref{app:prompts}). The
 judge never sees $s$. The main text uses the commercial reasoning model GPT-5-mini (OpenAI API, reasoning effort
 low); the open models Qwen3.8-27B-FP8 and Gemma-3-27B-FP8 \cite{gemma2025gemma3} (vLLM, temperature 0) are reported
-in the appendix.
+in Appendix~\ref{app:open}.
 
 % ===================================================================================== Experiments
 \section{Experiments}
@@ -204,7 +204,7 @@ leaves steps 1--3 to greedy. pickup only picks things up, onions (step 1) and, u
 never puts an onion in the pot. shadow does almost no step, and greedy does the whole recipe. The diamonds show the
 learner playing alone with greedy frozen. theft then does nothing and makes no soup: it never learned to cook, only
 to take over what greedy has prepared. pickup and GRPO shadow also do less alone, because their behaviour needs a
-partner who moves (appendix Table~\ref{tab:solo}).
+partner who moves (Appendix~\ref{app:pool}).
 
 \begin{table}[!ht]
 \centering
@@ -303,8 +303,7 @@ theft 0.17/0.15, shadow 0.15/0.13, greedy 0.50, and theft is never overestimated
 $v(L)$ from the log, and no single piece (the definition, $v(P)$, or both values without the definition) suffices.
 An overseer must therefore run the counterfactual replays itself; a judge cannot stand in for them.
 
-\textbf{Other judges.} The open judges Qwen3.8-27B and Gemma-3-27B fail the same way (appendix
-Tables~\ref{tab:judgefull_qwen} and~\ref{tab:judgefull_gemma}).
+\textbf{Other judges.} The open judges Qwen3.8-27B and Gemma-3-27B fail the same way (Appendix~\ref{app:open}).
 
 \subsection{The same failure in a warehouse}
 \begin{table}[!ht]
@@ -323,11 +322,11 @@ three robots carry requested shelves to the single goal of a $5\times4$ map with
 learner is robot 0 and both partners are a scripted greedy robot. The rewards are the same choices (theft: 10 per own
 delivery; pickup: $+0.15$ per shelf lift; shadow: $+1$ per step next to a partner), plus \emph{team}, a learner paid
 only for team deliveries. $s$ is the three-player Shapley share over all seven coalitions, with absent robots
-removed from the map (appendix). theft delivers 0.32/0.23 of the team's shelves but holds only $s=0.13/0.08$, and the
+removed from the map (Appendix~\ref{app:rware}). theft delivers 0.32/0.23 of the team's shelves but holds only $s=0.13/0.08$, and the
 log-reading judges give it exactly its delivered share, 0.32/0.24 (Table~\ref{tab:rware}). Under PPO the team learner
 has the same true share ($s=0.14$) yet gets 0.14, less than half of theft's credit. Here even the definition with
 both values only halves the overestimate: theft falls to 0.13--0.27 and is still overestimated in 32--55\% of games
-(appendix Table~\ref{tab:rware_judge}).
+(Appendix~\ref{app:rware}).
 
 % ===================================================================================== Conclusions
 \section{Conclusions}
@@ -355,8 +354,13 @@ pot.
 \appendix
 \onecolumn  % appendix in one column: every table and figure stays where it is written
 
-\section{Appendix}
+% Appendix subsections are lettered A, B, ...; the main text cites them as Appendix~\ref{app:...}.
+\setcounter{secnumdepth}{2}
+\renewcommand{\thesubsection}{\Alph{subsection}}
+\section*{Appendix}
+\setcounter{subsection}{0}
 \subsection{Judge pool and purity check}
+\label{app:pool}
 \par\medskip\noindent\begin{minipage}{\textwidth}
 \centering
 \footnotesize
@@ -486,11 +490,13 @@ that agent 0 delivered all 11 soups; that the partner makes 7 on its own is give
 \texttt{numbers} and \texttt{solo}.
 
 \subsection{LLM judge details}
+\label{app:judge}
 Each game is judged on its own, once per input, by each of the three judge LLMs with the same prompts. The output is
 forced into JSON (reason, credit); games whose output was cut off at the token limit were judged again with a larger
 limit.
 
 \subsection{Open judge LLMs}
+\label{app:open}
 Tables~\ref{tab:judgefull_qwen} and~\ref{tab:judgefull_gemma} repeat Table~\ref{tab:judgefull} for the open judges
 Qwen3.8-27B and Gemma-3-27B. Both fail as GPT-5-mini does. From the log they give theft 0.38--0.83, 2--5.5 times
 its true share, and overestimate it in 95--100\% of games. Neither the definition (0.47--0.77) nor partial
@@ -518,6 +524,7 @@ Table~\ref{tab:judgefull}).}
 \end{minipage}\par\medskip
 
 \subsection{Hyperparameters}
+\label{app:hparams}
 Table~\ref{tab:hparams} lists the settings used for every run (defaults of \texttt{train/config.py}, recorded in
 each result folder's \texttt{config.json}). The policy is a $520 \rightarrow 128 \rightarrow 128 \rightarrow 6$ MLP
 (tanh), and the observation is the lossless state encoding normalised by a running mean/std. PPO uses GAE advantages
@@ -550,6 +557,7 @@ Evaluation & \multicolumn{2}{c}{policy sampling} \\
 \end{minipage}\par\medskip
 
 \subsection{Learning Curves}
+\label{app:curves}
 Lines are means over seeds 0--2 and bands span min--max (moving average over 10 updates); the dashed line marks 1M
 steps, where the official shaping reaches 0. Training rewards have different units per reward, so they cannot be
 compared across personas.
@@ -563,6 +571,7 @@ all deliveries early, while pickup and shadow raise their bonuses yet keep team 
 \end{minipage}\par\medskip
 
 \subsection{A second environment: the multi-robot warehouse (RWARE)}
+\label{app:rware}
 \textbf{Setup.} In the \texttt{cramped-hard} layout of RWARE \cite{christianos2020seac}, a $5\times4$ map with one
 goal and one-cell aisles, three robots carry requested shelves to the goal for 500 steps; each delivery is one point
 for the team. The learner is robot 0 and robots 1--2 are a scripted greedy robot that fetches the nearest requested

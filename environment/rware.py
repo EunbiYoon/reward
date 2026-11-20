@@ -409,6 +409,9 @@ class Rware:
 
     # ------------------------------------------------------------------ rendering
     def render(self, renderer: str = "auto") -> np.ndarray:
+        return self._on_present(lambda: self._render(renderer))   # absent robots are not drawn
+
+    def _render(self, renderer: str) -> np.ndarray:
         if renderer in ("auto", "official"):
             try:
                 try:

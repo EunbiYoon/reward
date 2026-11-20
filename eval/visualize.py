@@ -51,6 +51,18 @@ def record(env, seat0, seat1: str, seed: int, title: str) -> list[np.ndarray]:
     torch_reseed(seed)
     env.play(seat0, seat1, seed, frames=raw)
     out = []
+    if env.unit == "deliveries":                  # rware: robots, shelves, goal (no cooks / soups)
+        n = env.n_agents
+        rest = "R1" if n == 2 else f"R1-R{n - 1}"
+        for t, (img, tot) in enumerate(raw):
+            out.append(header(img, [f"{title}  t={t}",
+                                    f"deliveries: team {tot['soups']:.0f} | R0 {tot['own_soups']:.0f}"
+                                    f" | {rest} {tot['partner_soups']:.0f}",
+                                    f"R0 lifts {tot['pickups0']:.0f} (requested "
+                                    f"{tot.get('requested_pickups0', 0):.0f})",
+                                    f"R0 steps: next to partner {tot.get('near_steps0', 0):.0f}, "
+                                    f"on goal {tot.get('goal_steps0', 0):.0f}"]))
+        return out
     for img, tot in raw:
         out.append(header(img, [title,
                                 f"team {env.unit} {tot['soups']:.4g}  learner {tot['own_soups']:.4g}  "
@@ -98,8 +110,9 @@ def save(frames: list[np.ndarray], path: str, fps: int):
     print(f"saved {path} ({len(frames)} frames)")
 
 
-def ckpt_clip(env, path: str, seed: int, deterministic: bool) -> list[np.ndarray]:
-    """A checkpoint replayed next to the partner it was trained with, titled with its intended persona."""
+def ckpt_clip(env, path: str, seed: int, deterministic: bool, alone: str | None = None) -> list[np.ndarray]:
+    """A checkpoint replayed next to the partner it was trained with, titled with its intended persona.
+    alone='stay' freezes every partner, alone='absent' takes them off the map (rware)."""
     from train.deep_policy import load_checkpoint
     from train.run import partner_tag
     from .persona import intended
@@ -110,7 +123,12 @@ def ckpt_clip(env, path: str, seed: int, deterministic: bool) -> list[np.ndarray
     who = "A" if partner.startswith("ckpt:") else partner
     persona = intended(m["reward"], partner) or "?"
     title = f"{persona}: {m['algo']} {m['reward']} reward next to {who} ({partner_tag(partner)}), seed {m['seed']}"
-    return record(env, policy_actor(policy, obs_rms, deterministic), partner, seed, title)
+    if env.unit == "deliveries":                  # rware: short title, the panel is narrow
+        persona = "honest" if persona == "cook" else persona
+        title = f"{persona}: {m['algo']} {m['reward']} s{m['seed']}"
+    if alone:
+        title += " (alone)"
+    return record(env, policy_actor(policy, obs_rms, deterministic), alone or partner, seed, title)
 
 
 def load_actor(run: str, algo: str, reward: str, partner: str, seed: int, deterministic: bool,
@@ -137,6 +155,9 @@ def main():
     p.add_argument("--ckpts", nargs="+", help="checkpoint files side by side, each next to its training partner")
     p.add_argument("--freeze", choices=["learner", "partner"],
                    help="freeze the learner or every partner (Shapley coalitions)")
+    p.add_argument("--remove-partners", action="store_true",
+                   help="take every partner off the map (rware: as the pool's coalition values v(L) do; overcooked: "
+                        "onto a counter no cook can reach, not drawn). --freeze partner only parks them")
     p.add_argument("--agents", type=int, default=2, choices=[2, 3, 4],
                    help="number of agents (3, 4: rware only)")
     p.add_argument("--env", default=None, type=canon, choices=list(ENVS),
@@ -163,9 +184,14 @@ def main():
     env.renderer = a.renderer
     seed = EVAL_SEED0 + a.episode
     seat1 = "stay" if a.freeze == "partner" else a.partner
+    if a.remove_partners:
+        if (a.env or cfg.env) not in ("rware", "overcooked"):
+            raise SystemExit("--remove-partners is rware / overcooked only")
+        seat1 = "absent"
 
     if a.ckpts:
-        frames = side_by_side([ckpt_clip(env, c, seed, det) for c in a.ckpts])
+        alone = seat1 if seat1 in ("stay", "absent") else None
+        frames = side_by_side([ckpt_clip(env, c, seed, det, alone) for c in a.ckpts])
         names = "_vs_".join(os.path.basename(c).removesuffix(".pt") for c in a.ckpts)
         out = a.out or f"results/videos/{names[:120]}_ep{a.episode}.gif"
     elif a.preview:

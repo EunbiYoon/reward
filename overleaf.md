@@ -1,0 +1,5 @@
+# git -> overleaf
+rsync -a --delete --exclude .git --exclude '*.log' --exclude '*.aux' --exclude '*.pdf' /scratch/workspace/eunbiyoon_umass_edu-paper/reward/docs/paper/ /scratch/workspace/eunbiyoon_umass_edu-paper/overleaf-paper/ && cd /scratch/workspace/eunbiyoon_umass_edu-paper/overleaf-paper && git add -A && git commit -qm "sync $(date +%F_%H%M)" && GIT_ASKPASS= SSH_ASKPASS= VSCODE_GIT_ASKPASS_MAIN= git push -q origin HEAD:main && echo "Overleaf 반영 완료"
+
+# overleaf -> git
+cd /scratch/workspace/eunbiyoon_umass_edu-paper/overleaf-paper && GIT_ASKPASS= SSH_ASKPASS= VSCODE_GIT_ASKPASS_MAIN= git pull -q --ff-only origin main && rsync -a --exclude .git --exclude '*.log' --exclude '*.aux' --exclude '*.pdf' /scratch/workspace/eunbiyoon_umass_edu-paper/overleaf-paper/ /scratch/workspace/eunbiyoon_umass_edu-paper/reward/docs/paper/ && cd /scratch/workspace/eunbiyoon_umass_edu-paper/reward && git diff --stat -- docs/paper && echo "Overleaf 내용 가져오기 완료"

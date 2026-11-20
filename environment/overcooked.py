@@ -161,7 +161,7 @@ class Overcooked:
 
     def _scripted_action(self, kind: str, seat: int, state):
         """Action object for a fixed seat: 'stay', 'greedy' or 'ckpt:<path>' (a frozen trained policy)."""
-        if kind == "stay":
+        if kind in ("stay", "absent"):
             return self.Action.STAY
         if kind == "self":
             # self-play (Carroll et al. 2019; FCP): seat 1 is moved by the learner's own current policy, which the
@@ -216,6 +216,16 @@ class Overcooked:
                     cells.append((x, y))
         return cells
 
+    def hidden_cells(self) -> list[tuple]:
+        """Counter cells that touch no floor cell (e.g. the corners of cramped_room). Overcooked-AI always keeps both
+        cooks in the state, so an 'absent' cook is put on one of these: no cook can step there or face it, so it
+        takes no part in the game, and the renderers leave it out."""
+        grid = self.mdp.terrain_mtx
+        H, W = len(grid), len(grid[0])
+        return [(x, y) for y in range(H) for x in range(W) if grid[y][x] == "X"
+                and not any(0 <= x + dx < W and 0 <= y + dy < H and grid[y + dy][x + dx] == " "
+                            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+
     def floor_cells(self) -> list[tuple]:
         grid = self.mdp.terrain_mtx
         return [(x, y) for y in range(len(grid)) for x in range(len(grid[0])) if grid[y][x] == " "]
@@ -231,7 +241,7 @@ class Overcooked:
         dirs = [(0, -1), (0, 1), (1, 0), (-1, 0)]
         return [(cells[i], dirs[rng.randint(4)]) for i in pick]
 
-    def _reset_core(self, seed: int, frozen: tuple = ()):
+    def _reset_core(self, seed: int, frozen: tuple = (), absent: tuple = ()):
         np.random.seed(int(seed) % (2 ** 32))         # GreedyHumanModel uses the global RNG
         self._noise_rng = np.random.RandomState((int(seed) + 7919) % (2 ** 32))   # partner mistakes
         self._pot_fill = {}
@@ -250,6 +260,24 @@ class Overcooked:
             for seat in frozen:
                 if spots:
                     players[seat].position = spots.pop(0)
+        self.absent = tuple(absent)
+        planner = self.env.mlam if absent else getattr(self.env, "_mlam", None)   # built lazily: build it now
+        mdps = {id(m): m for m in (self.mdp, getattr(planner, "mdp", None)) if m is not None}
+        for m in mdps.values():
+            m.__dict__.pop("get_valid_player_positions", None)
+        if absent:
+            hide = self.hidden_cells()
+            if len(hide) < len(absent):
+                raise ValueError(f"layout {self.layout!r} has no counter cell off the floor to hide a cook on")
+            used = [hide.pop(0) for _ in absent]
+            for seat, cell in zip(absent, used):
+                self.env.state.players[seat].position = cell
+            # the package asserts every step that each cook stands on floor: allow the hidden cells too (no floor
+            # cell touches them, so no cook can ever walk onto one)
+            # (the greedy cook's planner simulates moves on its own copy of the MDP: patch that one too)
+            floor = type(self.mdp).get_valid_player_positions
+            for m in mdps.values():
+                m.get_valid_player_positions = (lambda m=m: list(floor(m)) + used)
         self.t = 0
 
     def _facing_pot(self, player):
@@ -374,7 +402,8 @@ class Overcooked:
         step: the learner's observation `obs`, every seat's action index `a` and the step's non-zero events
         `ev` (what the LLM judge reads and the reward model is trained on, see judge/)."""
         frozen = tuple(i for i, s in enumerate((seat0, seat1)) if isinstance(s, str) and s == "stay")
-        self._reset_core(seed, frozen)
+        absent = tuple(i for i, s in enumerate((seat0, seat1)) if isinstance(s, str) and s == "absent")
+        self._reset_core(seed, frozen, absent)   # 'absent': taken off the floor (see hidden_cells), videos only
         tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1",
                                 "onion_pickups0", "dish_pickups0", *EXTRA_METRICS)}
         if frames is not None:
@@ -401,16 +430,20 @@ class Overcooked:
 
     # ------------------------------------------------------------------ rendering
     def render(self, renderer: str = "auto") -> np.ndarray:
+        state = self.env.state
+        if getattr(self, "absent", ()):           # draw only the cooks on the floor
+            state = state.deepcopy()
+            state.players = tuple(p for i, p in enumerate(state.players) if i not in self.absent)
         if renderer in ("auto", "official"):
             try:
-                return render_official(self.env.state, self.mdp)
+                return render_official(state, self.mdp)
             except Exception as e:
                 if renderer == "official":
                     raise
                 if not getattr(self, "_warned", False):
                     print(f"  (official renderer unavailable: {type(e).__name__}; using simple renderer)")
                     self._warned = True
-        return render_simple(self.env.state, self.mdp)
+        return render_simple(state, self.mdp)
 
     def close(self):
         pass
