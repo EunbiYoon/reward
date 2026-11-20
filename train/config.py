@@ -30,6 +30,8 @@ class Config:
     eval_episodes: int = 10           # fixed eval seeds 10_000 + k, shared by every coalition
     eval_deterministic: bool = False  # argmax policies often get stuck in Overcooked
     hidden: int = 128
+    init_ckpt: str = ""               # PPO starts from this checkpoint ("{seed}" is replaced), e.g. a BC cook
+    value_warmup: int = 10            # ... and trains only its value net for this many updates first
 
     # PPO
     gamma: float = 0.99

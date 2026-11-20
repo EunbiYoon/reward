@@ -123,7 +123,9 @@ def fit(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_pat
                        minibatch=cfg.ppo_minibatch, lr=cfg.ppo_lr, clip_eps=cfg.clip_eps,
                        vf_coef=cfg.vf_coef, ent_coef=cfg.ent_coef,
                        max_grad_norm=cfg.max_grad_norm, hidden=cfg.hidden, aux_coef=cfg.aux_coef,
-                       resume_path=resume_path, curve_path=curve_path)
+                       resume_path=resume_path, curve_path=curve_path,
+                       init_path=cfg.init_ckpt.format(seed=seed) if cfg.init_ckpt else "",
+                       value_warmup=cfg.value_warmup)
         return train_ppo(env, pc, seed)
     if algo == "grpo":
         from train.grpo import GRPODeepConfig, train_grpo_deep
@@ -349,6 +351,9 @@ def parse_args():
                    help="overcooked = Overcooked-AI (default), rware = multi-robot warehouse (old names kitchen / warehouse work too)")
     p.add_argument("--layout", help="default per env: cramped_room / tiny / 8x8-3f / overworld-easy")
     p.add_argument("--env-steps", type=int)
+    p.add_argument("--init-ckpt", help="PPO: start every run from this checkpoint; {seed} is replaced by the run's "
+                                       "seed, e.g. results/rware3_bc/bc_greedy_greedy_n3_s{seed}.pt (shaping off)")
+    p.add_argument("--value-warmup", type=int, help="with --init-ckpt: updates that train only the value net (10)")
     p.add_argument("--pickup-bonus", type=float, nargs="+",
                    help="pickup bonus per pickup; several values = a dose-response grid (H7)")
     p.add_argument("--partner-noise", type=float, nargs="+",
@@ -372,7 +377,7 @@ def parse_args():
         a.algos = list(ALGOS)
     cfg = make_config(a.quick, seeds=t(a.seeds), algos=t(a.algos), agents=t(a.agents), rewards=t(a.rewards),
                       partners=t(a.partners), env=a.env, layout=a.layout, env_steps=a.env_steps,
-                      reward_model=a.reward_model)
+                      reward_model=a.reward_model, init_ckpt=a.init_ckpt, value_warmup=a.value_warmup)
     from dataclasses import replace
     for vals, field, grid in ((a.pickup_bonus, "pickup_bonus", "pickup_bonuses"),
                               (a.partner_noise, "partner_noise", "partner_noises"),

@@ -46,6 +46,8 @@ class PPOConfig:
     hidden: int = 64             # MLP width
     aux_coef: float = 0.0     # > 0: auxiliary partner-action prediction on the policy trunk (H12)
     resume_path: str = ""     # mid-training checkpoint (train/resume.py); "" = none
+    init_path: str = ""       # start the policy (and its normalizer) from this checkpoint, e.g. a BC cook
+    value_warmup: int = 0     # with init_path: the first updates train only the value net (policy frozen)
     save_every_s: float = 300.0
     curve_path: str = ""      # CSV learning curve, one row per update ("" = none); see scripts/plot_curves.py
 
@@ -107,6 +109,11 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
         steps, updates, ep_seed, ep_returns = st["steps"], st["updates"], st["ep_seed"] + 1, st["ep_returns"]
         base_env(env).total_steps = st["env_total_steps"]     # keeps the shaping anneal where it was
         torch.set_rng_state(st["torch_rng"])
+    elif cfg.init_path:                              # warm start (not on resume: the resume state has it)
+        from .deep_policy import load_checkpoint
+        init_pol, obs_rms, _ = load_checkpoint(cfg.init_path)
+        policy.load_state_dict(init_pol.state_dict())
+        base_env(env).total_steps = base_env(env).anneal_steps   # it already works: no shaping
     if getattr(base_env(env), "partner", None) == "self":
         base_env(env).self_policy = (policy, obs_rms)   # self-play: seat 1 plays the live policy (updated in place)
     obs = env.reset(ep_seed)
@@ -194,7 +201,8 @@ def train_ppo(env, cfg: PPOConfig, seed: int, log_every: int = 0):
                 pg = -torch.min(ratio * a_mb, ratio.clamp(1 - cfg.clip_eps, 1 + cfg.clip_eps) * a_mb).mean()
                 vl = ((value(Ot[idx]) - RETt[idx]) ** 2).mean()            # value regression
                 ent = policy.entropy(Ot[idx]).mean()                       # exploration bonus
-                loss = pg + cfg.vf_coef * vl - cfg.ent_coef * ent
+                pw = 0.0 if cfg.init_path and updates < cfg.value_warmup else 1.0   # value warm-up
+                loss = pw * (pg - cfg.ent_coef * ent) + cfg.vf_coef * vl
                 if head is not None:
                     loss = loss + cfg.aux_coef * head.loss(policy, Ot[idx], P1t[idx])
                 opt.zero_grad()
