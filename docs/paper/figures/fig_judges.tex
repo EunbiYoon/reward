@@ -8,7 +8,7 @@
   xtick={0,...,5}, ytick={0,0.5}, yticklabels={0,.5}, ymajorgrids, grid style={cGrid, line width=0.3pt},
   axis line style={cMuted!60}, tick style={draw=none}, tick label style={font=\tiny, text=cMuted},
   ylabel style={font=\scriptsize, align=center}, title style={font=\scriptsize\bfseries, yshift=-4pt}]
-\nextgroupplot[xticklabels={}, ylabel={\textbf{Qwen3.8-27B}\\credit $o$ to agent 0 $o$}, title={PPO}, legend columns=5, legend style={draw=none, font=\scriptsize, at={(0,1)}, anchor=south west, yshift=0.45cm, /tikz/every even column/.append style={column sep=6pt}}]
+\nextgroupplot[xticklabels={}, ylabel={\textbf{Qwen3.8-27B}\\0번이 받은 공 $o$}, title={PPO}, legend columns=5, legend style={draw=none, font=\scriptsize, at={(0,1)}, anchor=south west, yshift=0.45cm, /tikz/every even column/.append style={column sep=6pt}}]
 \addplot[cOrange, line width=0.9pt, mark=*, mark size=1.3pt] coordinates {(0,0.500) (1,0.378) (2,0.476) (3,0.395) (4,0.349) (5,0.208)};\addlegendentry{theft}
 \addplot[cOrange, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.174) (5.35,0.174)};
 \addplot[cAqua, line width=0.9pt, mark=*, mark size=1.3pt] coordinates {(0,0.500) (1,0.019) (2,0.011) (3,0.011) (4,0.002) (5,0.054)};\addlegendentry{pickup}
@@ -17,7 +17,7 @@
 \addplot[cYellow, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.125) (5.35,0.125)};
 \addplot[cBlue, line width=0.9pt, mark=*, mark size=1.3pt] coordinates {(0,0.500) (1,0.608) (2,0.609) (3,0.529) (4,0.592) (5,0.494)};\addlegendentry{greedy}
 \addplot[cBlue, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.500) (5.35,0.500)};
-\addlegendimage{cMuted, densely dashed, line width=0.6pt}\addlegendentry{true share $s$ (dashed)}
+\addlegendimage{cMuted, densely dashed, line width=0.6pt}\addlegendentry{실제 몫 $s$ (점선)}
 \nextgroupplot[xticklabels={}, yticklabels={}, title={GRPO}]
 \addplot[cOrange, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.455) (2,0.468) (3,0.364) (4,0.374) (5,0.170)};
 \addplot[cOrange, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.146) (5.35,0.146)};
@@ -27,7 +27,7 @@
 \addplot[cYellow, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.087) (5.35,0.087)};
 \addplot[cBlue, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.606) (2,0.617) (3,0.529) (4,0.584) (5,0.500)};
 \addplot[cBlue, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.500) (5.35,0.500)};
-\nextgroupplot[xticklabels={}, ylabel={\textbf{Gemma-3-27B}\\credit $o$ to agent 0 $o$}]
+\nextgroupplot[xticklabels={}, ylabel={\textbf{Gemma-3-27B}\\0번이 받은 공 $o$}]
 \addplot[cOrange, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.501) (1,0.762) (2,0.600) (3,0.639) (4,0.478) (5,0.210)};
 \addplot[cOrange, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.174) (5.35,0.174)};
 \addplot[cAqua, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.498) (1,0.047) (2,0.047) (3,0.034) (4,0.025) (5,0.014)};
@@ -37,8 +37,8 @@
 \addplot[cBlue, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.617) (2,0.616) (3,0.615) (4,0.621) (5,0.574)};
 \addplot[cBlue, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.500) (5.35,0.500)};
 \nextgroupplot[xticklabels={}, yticklabels={}]
-\node[font=\scriptsize, text=cMuted] at (rel axis cs:0.5,0.5) {not run};
-\nextgroupplot[xticklabels={{score},{log},{+def.},{+$v(P)$},{+$v(P),v(L)$},{+def.+counterf.}}, ylabel={\textbf{GPT-5-mini}\\credit $o$ to agent 0 $o$}, xticklabel style={font=\tiny, rotate=20, anchor=north east, inner sep=1pt}]
+\node[font=\scriptsize, text=cMuted] at (rel axis cs:0.5,0.5) {아직 돌리지 않음};
+\nextgroupplot[xticklabels={{점수},{기록},{+정의},{+$v(P)$},{+$v(P),v(L)$},{+정의+반사실}}, ylabel={\textbf{GPT-5-mini}\\0번이 받은 공 $o$}, xticklabel style={font=\tiny, rotate=20, anchor=north east, inner sep=1pt}]
 \addplot[cOrange, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.463) (2,0.481) (3,0.347) (4,0.308) (5,0.174)};
 \addplot[cOrange, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.174) (5.35,0.174)};
 \addplot[cAqua, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.274) (2,0.086) (3,0.035) (4,0.035) (5,0.098)};
@@ -47,7 +47,7 @@
 \addplot[cYellow, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.125) (5.35,0.125)};
 \addplot[cBlue, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.619) (2,0.616) (3,0.239) (4,0.530) (5,0.500)};
 \addplot[cBlue, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.500) (5.35,0.500)};
-\nextgroupplot[xticklabels={{score},{log},{+def.},{+$v(P)$},{+$v(P),v(L)$},{+def.+counterf.}}, yticklabels={}, xticklabel style={font=\tiny, rotate=20, anchor=north east, inner sep=1pt}]
+\nextgroupplot[xticklabels={{점수},{기록},{+정의},{+$v(P)$},{+$v(P),v(L)$},{+정의+반사실}}, yticklabels={}, xticklabel style={font=\tiny, rotate=20, anchor=north east, inner sep=1pt}]
 \addplot[cOrange, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.460) (2,0.454) (3,0.290) (4,0.245) (5,0.146)};
 \addplot[cOrange, densely dashed, line width=0.6pt, forget plot] coordinates {(-0.35,0.146) (5.35,0.146)};
 \addplot[cAqua, line width=0.9pt, mark=*, mark size=1.3pt, forget plot] coordinates {(0,0.500) (1,0.408) (2,0.042) (3,0.040) (4,0.040) (5,0.085)};

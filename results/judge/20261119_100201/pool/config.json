@@ -1,0 +1,29 @@
+{
+  "env": "foraging",
+  "layout": null,
+  "horizon": null,
+  "agents": 2,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_pickup_greedy_s0.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_pickup_greedy_s1.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_pickup_greedy_s2.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_shadow_greedy_s0.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_shadow_greedy_s1.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_shadow_greedy_s2.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_theft_greedy_s0.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_theft_greedy_s1.pt",
+    "ckpt:results/judge/20261119_100201/ckpts/grpo_theft_greedy_s2.pt"
+  ],
+  "policies": [
+    "results/judge/20261119_100201/ckpts/*.pt"
+  ],
+  "episodes": 20,
+  "workers": 1,
+  "random_start": false,
+  "out": "results/judge/20261119_100201",
+  "pool_seed0": 50000
+}

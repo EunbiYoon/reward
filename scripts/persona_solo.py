@@ -1,9 +1,10 @@
 """Persona purity: does each greedy-trained persona keep its behaviour when the partner is frozen?
 
-    venv/bin/python scripts/persona_solo.py              -> results/persona_solo.{png,csv}
+    venv/bin/python scripts/persona_solo.py     -> results/train/persona-fig/solo vs withgreedy/persona_solo.{png,csv}
     venv/bin/python scripts/persona_solo.py --replot     # redraw from the csv
 
-For theft, pickup and shadow (trained next to greedy, results/<algo>/need_curve), every seed checkpoint is
+The csv is the "alone" input of scripts/paper_fig1.py (paper Figure fig:steps) and the numbers of tab:solo.
+For theft, pickup and shadow (trained next to greedy, results/train/<algo>/A_persona), every seed checkpoint is
 replayed twice on the evaluation seeds: next to the moving greedy cook (as trained) and alone, with the
 partner frozen and parked on a cell next to no pot, dispenser or counter (the learner-alone coalition of the
 Shapley evaluation). x = the soup steps 1-7 (step 4, waiting, is not an action), y = the LEARNER's actions
@@ -44,10 +45,10 @@ def measure(episodes: int) -> pd.DataFrame:
     rows = []
     for algo in ALGOS:
         for persona, reward in PERSONAS:
-            paths = sorted(glob.glob(f"results/{algo}/need_curve/**/models/{algo}_{reward}_greedy_s*.pt",
+            paths = sorted(glob.glob(f"results/train/{algo}/A_persona/**/models/{algo}_{reward}_greedy_s*.pt",
                                      recursive=True))
             if not paths:
-                print(f"  skip {algo} {persona}: no checkpoint under results/{algo}/need_curve")
+                print(f"  skip {algo} {persona}: no checkpoint under results/train/{algo}/A_persona")
             for path in paths:
                 policy, obs_rms, meta = load_checkpoint(path)
                 for mode, _ in MODES:
@@ -125,7 +126,8 @@ def main():
     p.add_argument("--episodes", type=int, default=10)
     p.add_argument("--replot", action="store_true")
     a = p.parse_args()
-    out = "results/persona_solo"
+    out = "results/train/persona-fig/solo vs withgreedy/persona_solo"
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     if a.replot:
         df = pd.read_csv(out + ".csv", dtype={"step": str})
     else:

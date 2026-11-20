@@ -4,7 +4,7 @@
     venv/bin/python scripts/persona_actions.py --algo grpo     # GRPO folders
     venv/bin/python scripts/persona_actions.py --replot        # redraw from the csv, no replay
     venv/bin/python scripts/persona_actions.py --root results/ppo/A_personas --partner A   # next to A
-    venv/bin/python scripts/persona_actions.py --root results/ppo/need_curve    # greedy-partner personas only
+    venv/bin/python scripts/persona_actions.py --algo ppo --root results/train/ppo/A_persona   # the paper's (fig:steps)
         (theft, pickup, shadow found anywhere under the folder) -> <root>/persona_actions.{png,csv}
 
 One panel per persona (theft, quit, pickup, shadow). x = the soup steps in cooking order; step 4 (waiting

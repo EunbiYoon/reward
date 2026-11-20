@@ -1,0 +1,1 @@
+{"seed": 0, "algo": "ppo", "reward": "team", "partner": "greedy", "agents": 2, "pickup_bonus": 0.05, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000000, "updates": 1000, "episodes": 45239, "train_proxy_return_last5": 0.5850000000000001, "train_seconds": 1019.6, "checkpoint": "models/ppo_team_greedy_s0.pt"}

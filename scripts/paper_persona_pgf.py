@@ -1,32 +1,22 @@
-"""The persona figures as native LaTeX (pgfplots), drawn by the paper's own fonts.
+"""Learning-curve figure of the paper (appendix, fig:curves) as native LaTeX (pgfplots).
 
-    venv/bin/python scripts/paper_persona_pgf.py
-        -> docs/paper/figures/fig_curves.tex  (pgfplots source; PPO and GRPO rows in one figure)
-           docs/paper/figures/data/*.dat              (the numbers each plot reads)
-           docs/paper/figures/fig_*.png               (each source compiled once with pdflatex in a temp dir and
-                                                       rasterized with ghostscript at 300 dpi; only the PNG is kept)
+    python3 -I scripts/paper_persona_pgf.py      (needs numpy, pandas)
+        -> docs/paper/figures/fig_curves.tex      (pgfplots source; PPO row on top, GRPO row below)
+           docs/paper/figures/data/curves_<algo>_<persona>.dat   (the numbers each plot reads)
 
-Same content as scripts/paper_persona_figs.py (the matplotlib version):
-- persona steps: PPO (top) and GRPO (bottom) x theft, pickup, shadow, all trained next to greedy. Learner vs
-  partner actions per episode for the soup steps 1-7 (mean over seeds = bar, one seed = dot). Reads
-  results/<algo>/need_curve/persona_actions.csv (run scripts/persona_actions.py --root ... first).
-- learning curves: theft, pickup, shadow (next to greedy); mean over seeds 0-2 (line) and min-max (band),
-  smoothed over 10 updates and thinned to every 5th update.
-The PDFs use the paper's fonts (times/helvet), so they look the same as drawing them inside the paper.
+Reads results/train/<algo>/**/curves/<algo>_<persona>_greedy_s*.csv (written by train.run) for theft, pickup and
+shadow trained next to greedy. Panels: training reward, team soups, learner deliveries, learner pickups. Line =
+mean over seeds 0-2, band = min-max, smoothed over 10 updates and thinned to every 5th update; the dashed line marks
+1M steps, where the official shaping reaches 0.
 """
 import glob
 import os
-import subprocess
-import tempfile
 
 import numpy as np
 import pandas as pd
 
 OUT = "docs/paper/figures"
 DATA = os.path.join(OUT, "data")
-PERSONAS = (("theft", "theft"), ("pickup", "pickup"), ("shadow", "shadow"))
-STEP_LABELS = ["1\\\\onion", "2\\\\pot", "3\\\\cook", "5\\\\dish", "6\\\\scoop", "7\\\\serve"]  # step 4 (wait) is no action
-POS = {"1": 1, "2": 2, "3": 3, "5": 4, "6": 5, "7": 6}  # x position of each step, no gap for step 4
 CURVES = {  # name -> (legend label, color, csv globs); {a} = algo
     "theft": ("theft", "cOrange", ["results/train/{a}/**/curves/{a}_theft_greedy_s*.csv"]),
     "pickup": ("pickup", "cAqua", ["results/train/{a}/**/curves/{a}_pickup_greedy_s*.csv"]),
@@ -45,51 +35,6 @@ PREAMBLE = r"""\definecolor{cBlue}{HTML}{2A78D6}\definecolor{cOrange}{HTML}{EB68
   ymajorgrids, grid style={cGrid, line width=0.3pt}, tick label style={text=cMuted},
   label style={text=cInk}, title style={align=left, anchor=base west, at={(0,1)}, yshift=6pt, font=\scriptsize}}}%
 """
-
-
-def num(x: float) -> str:
-    return f"{x:.3f}".rstrip("0").rstrip(".")
-
-
-def steps_tex() -> str:
-    lines = [PREAMBLE, r"\begin{tikzpicture}",
-             r"\begin{groupplot}[group style={group size=3 by 2, horizontal sep=0.95cm, vertical sep=0.95cm},",
-             r"  personastyle, width=5.0cm, height=1.55cm, xmin=0.45, xmax=6.55, ymin=0, xtick={1,...,6},",
-             r"  xticklabels={" + ",".join("{" + s + "}" for s in STEP_LABELS) + "},",
-             r"  xticklabel style={align=center, font=\tiny, inner sep=1pt}, yticklabel style={font=\tiny},",
-             r"  title style={yshift=-2pt}, enlarge x limits=false]"]
-    first = True
-    for algo in ("ppo", "grpo"):
-        path = f"results/{algo}/need_curve/persona_actions.csv"
-        if not os.path.exists(path):
-            print(f"  skip {algo}: {path} missing")
-            continue
-        df = pd.read_csv(path, dtype={"step": str})
-        df = df[df.step != "4"]
-        for c, (persona, reward) in enumerate(PERSONAS):
-            d = df[df.persona == persona]
-            top = max(1.0, d.learner.max(), d.partner.max()) * 1.1
-            near = d.groupby("checkpoint").near_frac.first().mean()
-            ylabel = r", ylabel={actions / ep.}, ylabel style={font=\tiny, yshift=-3pt}" if c == 0 else ""
-            # legend drawn in the first panel, above its title (no `legend to name` + \ref: it hangs with kotex)
-            leg = (r"legend columns=3, legend style={draw=none, font=\scriptsize, at={(0,1)}, anchor=south west, "
-                   r"yshift=0.55cm, /tikz/every even column/.append style={column sep=8pt}}, ") if first else ""
-            lines.append(rf"\nextgroupplot[{leg}ymax={num(top)}{ylabel}, title={{\textbf{{{persona}}} ({algo.upper()})"
-                         rf"\ {{\color{{cMuted}}\tiny {reward} $\cdot$ near partner {near * 100:.0f}\%}}}}]")
-            for seat, color, shift in (("learner", "cBlue", -0.19), ("partner", "cOrange", 0.19)):
-                means = d.groupby("step")[seat].mean()
-                coords = " ".join(f"({POS[s]},{num(v)})" for s, v in means.items())
-                legend = rf"\addlegendentry{{{seat} ({'persona' if seat == 'learner' else 'greedy'})}}" if first else ""
-                lines.append(rf"\addplot[ybar, bar width=0.34, bar shift={shift}, fill={color}, draw=none, area legend] "
-                             rf"coordinates {{{coords}}};{legend}")
-            for seat, shift in (("learner", -0.19), ("partner", 0.19)):
-                dots = " ".join(f"({POS[r.step] + shift:.2f},{num(getattr(r, seat))})" for r in d.itertuples())
-                legend = r"\addlegendentry{one seed}" if first and seat == "learner" else ""
-                opts = "only marks, mark=*, mark size=0.5pt, cInk, fill opacity=0.5, draw opacity=0.5"
-                lines.append(rf"\addplot[{opts}{'' if legend else ', forget plot'}] coordinates {{{dots}}};{legend}")
-            first = False
-    lines += [r"\end{groupplot}", r"\end{tikzpicture}"]
-    return "\n".join(lines) + "\n"
 
 
 def load(algo: str, globs: list) -> list:
@@ -157,35 +102,7 @@ def curves_tex(algos=("ppo", "grpo")) -> str:
     return "\n".join(lines) + "\n"
 
 
-STANDALONE = r"""\documentclass[10pt,border=1pt]{standalone}
-\usepackage{times}\usepackage{helvet}\usepackage{courier}
-\usepackage{pgfplots}\usepgfplotslibrary{groupplots,fillbetween}\pgfplotsset{compat=1.18}
-\begin{document}
-\input{figures/%s.tex}
-\end{document}
-"""
-
-
-def compile_png(name: str):
-    """figures/<name>.tex -> figures/<name>.png (300 dpi), compiled from docs/paper so figures/data/... resolves.
-    The intermediate PDF stays in the temp dir."""
-    paper = os.path.dirname(OUT)
-    with tempfile.TemporaryDirectory() as tmp:
-        src = os.path.join(tmp, name + ".tex")
-        with open(src, "w") as f:
-            f.write(STANDALONE % name)
-        r = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "-output-directory", tmp, src],
-                           cwd=paper, capture_output=True, text=True)
-        if r.returncode:
-            raise SystemExit(f"pdflatex failed on {name}:\n" + r.stdout[-2000:])
-        subprocess.run(["gs", "-q", "-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=png16m", "-r300",
-                        "-dTextAlphaBits=4", "-dGraphicsAlphaBits=4",
-                        "-sOutputFile=" + os.path.abspath(os.path.join(OUT, name + ".png")),
-                        os.path.join(tmp, name + ".pdf")], check=True)
-
-
 def main():
-    # the paper \input-s the .tex (no PNG); the persona steps figure is now scripts/paper_fig1.py
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, "fig_curves.tex"), "w") as f:
         f.write(curves_tex())

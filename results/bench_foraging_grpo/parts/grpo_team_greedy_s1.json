@@ -1,0 +1,1 @@
+{"seed": 1, "algo": "grpo", "reward": "team", "partner": "greedy", "agents": 2, "pickup_bonus": 0.05, "partner_noise": null, "aux_coef": 0.0, "env_steps_used": 2000105, "updates": 5638, "episodes": 45104, "grpo_skipped_groups": 206, "train_proxy_return_last5": 0.6135714322328567, "train_seconds": 812.5, "checkpoint": "models/grpo_team_greedy_s1.pt"}
