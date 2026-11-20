@@ -1,0 +1,44 @@
+{
+  "env": "rware",
+  "layout": "cramped-hard",
+  "horizon": null,
+  "agents": 3,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "ckpt:results/rware3_cramped_grid/models/grpo_pickup_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_pickup_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_pickup_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_shadow_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_shadow_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_shadow_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_team_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_team_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_team_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_theft_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_theft_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/grpo_theft_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_pickup_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_pickup_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_pickup_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_shadow_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_shadow_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_shadow_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_team_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_team_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_team_greedy_n3_s2.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_theft_greedy_n3_s0.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_theft_greedy_n3_s1.pt",
+    "ckpt:results/rware3_cramped_grid/models/ppo_theft_greedy_n3_s2.pt"
+  ],
+  "policies": [
+    "results/rware3_cramped_grid/models/*.pt"
+  ],
+  "episodes": 20,
+  "workers": 12,
+  "random_start": false,
+  "out": "results/judge/rware3_cramped_pool",
+  "pool_seed0": 50000
+}

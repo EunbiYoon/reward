@@ -10,8 +10,10 @@ For n = 2 this is phi_L = 1/2 [ (v(L,P) - v(P)) + v(L) ]. Every subset is evalua
 plays 2^4 - 1 = 15 coalitions (8 with the learner) per evaluation episode.
 
 All coalitions are evaluated on the SAME episode seeds (common random numbers).
-A frozen cook still stands on its cell, so in a cramped kitchen it can block the other
-cook; this is a known limitation of the frozen-cook baseline.
+How a seat outside S is handled is the env's `off_kind`: 'stay' (default, Overcooked) freezes it, but a
+frozen cook still stands on its cell and can block the others in a cramped kitchen; 'absent' (RWARE)
+takes it off the map, so v(P) is what the partners do truly alone. With partner 'stay' the real game
+has the frozen partners in it, so every seat outside S stays frozen.
 """
 from __future__ import annotations
 
@@ -57,10 +59,11 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
     the real game) is appended to it, one list per episode (see env.play)."""
     n_agents = getattr(env, "n_agents", 2)
     seats = tuple(range(1, n_agents))
+    off = getattr(env, "off_kind", "stay") if partner != "stay" else "stay"   # a seat outside the coalition
 
     def kinds(T):
         """Per-partner kinds with only the seats in T moving (a str for 2 agents, as Overcooked expects)."""
-        k = tuple(partner if i in T else "stay" for i in seats)
+        k = tuple(partner if i in T else off for i in seats)
         return k[0] if n_agents == 2 else k
 
     # A 'stay' partner never moves anyway, so every coalition equals the one with no partner moving.
@@ -77,7 +80,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
                 grand = traces if T == frozenset(seats) or partner == "stay" else None
                 plays[key] = _mean_play(env, seat0, kinds(T), n, before_episode, seed0, grand)
             else:
-                plays[key] = _mean_play(env, "stay", kinds(T), n, seed0=seed0)
+                plays[key] = _mean_play(env, off, kinds(T), n, seed0=seed0)
         return plays[key]
 
     v = {T: (play(True, T)["soups"], play(False, T)["soups"]) for T in subsets}
@@ -97,6 +100,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
                 coal["v_" + tag] = v[T][1]
     return {
         "agents": n_agents,
+        "coalition_off": off,                         # 'stay' (frozen, still on the map) or 'absent' (removed)
         "soups": both["soups"],                       # v(all), the true objective
         "own_soups": both["own_soups"],
         "partner_soups": both["partner_soups"],       # all partners together

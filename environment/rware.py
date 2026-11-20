@@ -104,6 +104,11 @@ class Rware:
                      ("near_frac", "near_steps0", "frac"),                    # shadow
                      ("hold_requested_frac", "hold_requested_steps0", "frac"),  # hoard / theft
                      ("goal_frac", "goal_steps0", "frac"))                    # camp
+    # Coalition evaluation (eval/coalitions.py): a seat outside the coalition is 'absent', taken off the map
+    # (it spawns as usual, so the other robots keep their start cells under the same seed, then it is removed
+    # from the warehouse: it never moves, blocks nothing and is invisible to the others). The old frozen
+    # baseline ('stay': parked, still blocking) overstated the learner's share in one-cell-aisle maps.
+    off_kind = "absent"
 
     def __init__(self, layout: str = "tiny", reward: str = "team", horizon: int = 500,
                  partner: str = "greedy", anneal_steps: int = 1_000_000, pickup_bonus: float = 0.15,
@@ -151,6 +156,8 @@ class Rware:
         e = self.env
         L = np.zeros((16, self.H, self.W), np.float32)
         for i, a in enumerate(e.agents):
+            if i in getattr(self, "absent", ()):
+                continue
             k = 0 if i == seat else 1
             L[6 * k, a.y, a.x] += 1.0
             L[6 * k + 1 + a.dir.value, a.y, a.x] += 1.0
@@ -171,8 +178,14 @@ class Rware:
                  if self.env.highways[y, x] and (x, y) not in goals]
         return sorted(cells, key=lambda c: -min(abs(c[0] - gx) + abs(c[1] - gy) for gx, gy in goals))
 
-    def _reset_core(self, seed: int, frozen: tuple = ()):
+    def _reset_core(self, seed: int, frozen: tuple = (), absent: tuple = ()):
         self.env.reset(seed=int(seed) % (2 ** 31))
+        self.absent = frozenset(absent)                           # seats taken off the map this episode
+        if self.absent:
+            # the warehouse only ever sees the present robots: their grid ids become 1 .. len(present)
+            for k, a in enumerate(self._present()):
+                a.id = k + 1
+            self._on_present(self.env._recalc_grid)
         self.rng = np.random.RandomState(int(seed) % (2 ** 32))   # the greedy robot's noise
         self.delivered = [False] * self.n_agents                  # delivered since the last lift
         self.lift_paid = [set() for _ in range(self.n_agents)]   # requested shelf ids whose lift was paid
@@ -181,14 +194,28 @@ class Rware:
             spots = [c for c in self.parking_cells() if all((a.x, a.y) != c for a in agents)]
             for seat in frozen:
                 agents[seat].x, agents[seat].y = spots.pop(0)
-            self.env._recalc_grid()
+            self._on_present(self.env._recalc_grid)
         self.t = 0
+
+    def _present(self) -> list:
+        """The robots on the map (all of them, except the absent seats of a coalition evaluation)."""
+        absent = getattr(self, "absent", frozenset())
+        return [a for i, a in enumerate(self.env.agents) if i not in absent]
+
+    def _on_present(self, fn):
+        """Run fn with the warehouse's agent list cut to the present robots (absent ones do not exist)."""
+        full = self.env.agents
+        self.env.agents = self._present()
+        try:
+            return fn()
+        finally:
+            self.env.agents = full
 
     # ------------------------------------------------------------------ scripted robot
     def _bfs(self, seat: int, targets: set, loaded: bool, avoid_others: bool):
         """First action of a shortest (x, y, direction) path to any target cell, or None."""
         e, me = self.env, self.env.agents[seat]
-        others = {(a.x, a.y) for i, a in enumerate(e.agents) if i != seat} if avoid_others else set()
+        others = {(a.x, a.y) for a in self._present() if a is not me} if avoid_others else set()
         start = (me.x, me.y, me.dir.value)
         seen, q = {start: None}, deque([start])
         while q:
@@ -233,7 +260,7 @@ class Rware:
         return A[step] if step else A(self.rng.randint(N_ACTIONS))
 
     def _scripted_action(self, kind: str, seat: int):
-        return self.Action.NOOP if kind == "stay" else self._greedy_action(seat)
+        return self.Action.NOOP if kind in ("stay", "absent") else self._greedy_action(seat)
 
     # ------------------------------------------------------------------ one step
     def _joint_step(self, actions: list) -> dict:
@@ -241,9 +268,16 @@ class Rware:
         agents = self.env.agents
         prev = [a.carrying_shelf for a in agents]
         requested = [s in self.env.request_queue for s in self._standing_under()]
-        _, rewards, done, _, _ = self.env.step(list(actions))
+        if self.absent:     # only the present robots act; rewards come back by their (renumbered) grid id
+            live = [i for i in range(self.n_agents) if i not in self.absent]
+            _, rewards, done, _, _ = self._on_present(lambda: self.env.step([actions[i] for i in live]))
+            by = [0.0] * self.n_agents
+            for i in live:
+                by[i] = float(rewards[agents[i].id - 1])
+        else:
+            _, rewards, done, _, _ = self.env.step(list(actions))
+            by = [float(r) for r in rewards]
         self.t += 1
-        by = [float(r) for r in rewards]
         ev = {"sparse": sum(by), "own_sparse": by[0], "soups": sum(by), "own_soups": by[0],
               "partner_soups": sum(by[1:])}
         shaped = [0.0] * self.n_agents
@@ -266,10 +300,12 @@ class Rware:
                 self.delivered[i] = True
         ev["shaped0"] = shaped[0]
         me = agents[0]
-        ev["near_steps0"] = int(any(abs(a.x - me.x) + abs(a.y - me.y) == 1 for a in agents[1:]))
+        on_map = 0 not in self.absent
+        ev["near_steps0"] = int(on_map and any(abs(a.x - me.x) + abs(a.y - me.y) == 1
+                                               for i, a in enumerate(agents[1:], 1) if i not in self.absent))
         ev["hold_requested_steps0"] = int(me.carrying_shelf is not None
                                           and me.carrying_shelf in self.env.request_queue)
-        ev["goal_steps0"] = int((me.x, me.y) in {tuple(g) for g in self.env.goals})
+        ev["goal_steps0"] = int(on_map and (me.x, me.y) in {tuple(g) for g in self.env.goals})
         ev["done"] = bool(done or self.t >= self.horizon)
         ev["terminal"] = False          # episodes only end by the time limit
         return ev
@@ -338,7 +374,7 @@ class Rware:
         """One episode. seat0: callable obs -> action index (a trained policy), 'greedy' or 'stay'.
         partners: 'greedy' or 'stay' for every partner seat, or a tuple with one kind per seat
         1 .. n-1 (mixed coalitions for the Shapley value). A 'stay' seat is frozen: parked where it
-        blocks little and never moves. Returns episode totals. If `frames` is a list, appends
+        blocks little and never moves. An 'absent' seat (seat 0 too) is taken off the map (see off_kind). Returns episode totals. If `frames` is a list, appends
         (rgb image, running totals) after every step, for videos. If `trace` is a list, appends one dict per
         step: the learner's observation `obs`, every seat's action index `a` and the step's non-zero events
         `ev` (see judge/)."""
@@ -347,7 +383,8 @@ class Rware:
         assert len(partners) == self.n_agents - 1, f"need {self.n_agents - 1} partner kinds, got {partners}"
         seats = (seat0, *partners)
         frozen = tuple(i for i, s in enumerate(seats) if isinstance(s, str) and s == "stay")
-        self._reset_core(seed, frozen)
+        absent = tuple(i for i, s in enumerate(seats) if isinstance(s, str) and s == "absent")
+        self._reset_core(seed, frozen, absent)
         tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1", *self.extra_metrics,
                                 *(f"{k}_pickups0" for k in self.pickup_kinds))}
         if frames is not None:
@@ -355,7 +392,7 @@ class Rware:
         done = False
         while not done:
             obs0 = self._encode(0)
-            acts = [self._action(seat0(obs0)) if callable(seat0)
+            acts = [self._action(seat0(obs0)) if callable(seat0) and 0 not in self.absent
                     else self._scripted_action(seat0, 0)]
             acts += [self._scripted_action(k, i) for i, k in enumerate(partners, 1)]
             ev = self._joint_step(acts)
