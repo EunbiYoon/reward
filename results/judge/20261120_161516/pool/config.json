@@ -1,0 +1,26 @@
+{
+  "env": "rware",
+  "layout": null,
+  "horizon": null,
+  "agents": 3,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy",
+    "ckpt:results/rware_20261120_0928/models/grpo_camp_greedy_n3_s0.pt",
+    "ckpt:results/rware_20261120_0928/models/grpo_camp_greedy_n3_s1.pt",
+    "ckpt:results/rware_20261120_0928/models/grpo_camp_greedy_n3_s2.pt",
+    "ckpt:results/rware_20261120_0928/models/grpo_shadow_greedy_n3_s0.pt",
+    "ckpt:results/rware_20261120_0928/models/grpo_shadow_greedy_n3_s1.pt",
+    "ckpt:results/rware_20261120_0928/models/grpo_shadow_greedy_n3_s2.pt"
+  ],
+  "policies": [
+    "results/rware_20261120_0928/models/grpo_*_greedy_n3_s*.pt"
+  ],
+  "episodes": 20,
+  "workers": 1,
+  "random_start": false,
+  "out": "results/judge/20261120_161516",
+  "pool_seed0": 50000
+}

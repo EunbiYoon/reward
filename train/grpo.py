@@ -38,6 +38,7 @@ class GRPODeepConfig:
     hidden: int = 64
     aux_coef: float = 0.0     # > 0: auxiliary partner-action prediction on the policy trunk (H12)
     resume_path: str = ""     # mid-training checkpoint (train/resume.py); "" = none
+    init_path: str = ""       # start the policy (and its normalizer) from this checkpoint, e.g. a BC robot
     save_every_s: float = 300.0
     curve_path: str = ""      # CSV learning curve, one row per group ("" = none); see scripts/plot_curves.py
 
@@ -85,6 +86,11 @@ def train_grpo_deep(env, cfg: GRPODeepConfig, seed: int, log_every: int = 0):
         steps, updates, skipped, group_means = st["steps"], st["updates"], st["skipped"], st["group_means"]
         base_env(env).total_steps = st["env_total_steps"]
         torch.set_rng_state(st["torch_rng"])
+    elif cfg.init_path:                              # warm start (not on resume: the resume state has it)
+        from .deep_policy import load_checkpoint
+        init_pol, obs_rms, _ = load_checkpoint(cfg.init_path)
+        policy.load_state_dict(init_pol.state_dict())
+        base_env(env).total_steps = base_env(env).anneal_steps   # it already works: no shaping
 
     def state():
         return {"policy": policy.state_dict(), "opt": opt.state_dict(),

@@ -44,6 +44,17 @@ import numpy as np
 N_ACTIONS = 5          # NOOP, FORWARD, LEFT, RIGHT, TOGGLE_LOAD
 STAY = 0               # index of Action.NOOP
 SIZES = {"tiny": (1, 3), "small": (2, 3), "medium": (2, 5), "large": (3, 5)}   # (shelf rows, columns)
+# Hand-drawn maps (the package's layout string: x = shelf, g = goal, . = highway). "cramped" is the warehouse
+# analogue of Overcooked's cramped_room: a 5 x 4 room, one goal (the single serving counter / pot every
+# delivery must pass through) and one-cell aisles where robots block each other.
+MAPS = {
+    "cramped": """
+x.x.x
+x.x.x
+.....
+..g..
+""",
+}
 DIFFICULTY = {"-easy": 2, "": 1, "-hard": 0.5}                                 # requests per robot
 MOVES = {0: (0, -1), 1: (0, 1), 2: (-1, 0), 3: (1, 0)}                         # Direction -> (dx, dy)
 TURN = {"LEFT": {0: 2, 2: 1, 1: 3, 3: 0}, "RIGHT": {0: 3, 3: 1, 1: 2, 2: 0}}   # UP=0 DOWN=1 LEFT=2 RIGHT=3
@@ -58,15 +69,19 @@ def _import_rware():
 
 
 def parse_layout(layout: str) -> tuple[int, int, float]:
-    """'tiny', 'small-easy', 'medium-hard' ... (the package's task names) -> rows, columns, requests/robot."""
+    """'tiny', 'small-easy', 'medium-hard', 'cramped-hard' ... -> rows, columns, requests/robot.
+    For a hand-drawn map (MAPS) rows and columns are 0: the map string gives the grid."""
     for suffix in ("-easy", "-hard"):
         if layout.endswith(suffix):
             size, diff = layout[: -len(suffix)], suffix
             break
     else:
         size, diff = layout, ""
+    if size in MAPS:
+        return 0, 0, DIFFICULTY[diff]
     if size not in SIZES:
-        raise ValueError(f"unknown warehouse layout {layout!r}; choose from {list(SIZES)} (+ -easy / -hard)")
+        raise ValueError(f"unknown warehouse layout {layout!r}; choose from {list(SIZES) + list(MAPS)} "
+                         "(+ -easy / -hard)")
     return (*SIZES[size], DIFFICULTY[diff])
 
 
@@ -106,7 +121,9 @@ class Rware:
         # rware_dday: shadow / hoard / camp raised 0.5 -> 1.0 per step (up to 500 per episode vs ~40 deliveries)
         self.camp_bonus = 1.0 if camp_bonus is None else float(camp_bonus)
         self.theft_scale = 10.0
+        size = layout.removesuffix("-easy").removesuffix("-hard")
         self.env = RWare(shelf_columns=cols, column_height=column_height, shelf_rows=rows, n_agents=n_agents,
+                         layout=MAPS.get(size),
                          msg_bits=0, sensor_range=1,
                          request_queue_size=max(1, int(n_agents * per_robot)),
                          max_inactivity_steps=None, max_steps=horizon,

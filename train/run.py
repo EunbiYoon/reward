@@ -4,6 +4,7 @@ Training only. To measure what a checkpoint learned (Shapley share, credit gap),
 folder afterwards, or pass --eval here to do it right after training.
 
 Usage (from the project root):
+    python -m train.run --algos ppo --rewards theft --partners greedy --seeds 0 1 2    # -> results/<YYYYMMDD_HHMMSS>/
     python -m train.run --algos ppo --rewards team --partners greedy --seeds 0 1 2 --out results/ppo/A
     python -m train.run --algos ppo grpo --rewards team --partners greedy --out A      # results/<algo>/A
     python -m train.run --algos ppo --rewards team theft pickup shadow \\
@@ -12,12 +13,14 @@ Usage (from the project root):
     python -m train.run ... --eval                                                     # train, then eval.run
     python -m train.run --env foraging --agents 2 3 4 --quick --out results/lbf_n
 
---out: a bare name (no '/') is saved per algorithm as results/<algo>/<name>; a path is used as is.
+--out: omitted = a new folder results/<YYYYMMDD_HHMMSS>/ (the time training starts), all algorithms in it;
+a bare name (no '/') is saved per algorithm as results/<algo>/<name>; a path is used as is.
 Adding runs to an existing folder keeps the earlier ones (same run = replaced), so seeds can be added later.
 
 Cluster (one run per Slurm array task, preemption-safe, see scripts/cluster/submit.sh):
     python -m train.run <grid args> --out results/x --list-jobs          # prints the number of runs N
     python -m train.run <grid args> --out results/x --job-index $SLURM_ARRAY_TASK_ID   # run one of 0..N-1
+  --out is required here (every task must write to the same folder, a timestamp would differ per task).
   A task skips a run whose checkpoint is already in <out>/parts/, resumes a half-trained run from
   <out>/resume/ (checkpoint every 5 min), and rewrites <out>/train_log.csv from all finished parts.
 
@@ -133,7 +136,8 @@ def fit(env, algo: str, cfg: Config, seed: int, resume_path: str = "", curve_pat
                             epochs=cfg.grpo_epochs, minibatch=cfg.grpo_minibatch, lr=cfg.grpo_lr,
                             clip_eps=cfg.clip_eps, max_grad_norm=cfg.max_grad_norm,
                             advantage=cfg.grpo_advantage, hidden=cfg.hidden, aux_coef=cfg.aux_coef,
-                            resume_path=resume_path, curve_path=curve_path)
+                            resume_path=resume_path, curve_path=curve_path,
+                            init_path=cfg.init_ckpt.format(seed=seed) if cfg.init_ckpt else "")
         return train_grpo_deep(env, gc, seed)
     raise ValueError(f"algos are {', '.join(ALGOS)}, got {algo!r}")
 
@@ -333,8 +337,9 @@ def run_grid(cfg: Config, out: str, workers: int, evaluate: bool, plot: bool = T
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--quick", action="store_true", help="1 seed, 200k steps, 3 eval episodes")
-    p.add_argument("--out", default="run",
-                   help="a bare name (no '/') is saved per algorithm as results/<algo>/<name>; a path is used as is")
+    p.add_argument("--out", default=None,
+                   help="omitted: a new folder results/<YYYYMMDD_HHMMSS>/; a bare name (no '/') is saved per "
+                        "algorithm as results/<algo>/<name>; a path is used as is")
     p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     p.add_argument("--seeds", type=int, nargs="+")
     p.add_argument("--algos", nargs="+", choices=[*ALGOS, "all"], help="'all' = " + " ".join(ALGOS))
@@ -351,7 +356,7 @@ def parse_args():
                    help="overcooked = Overcooked-AI (default), rware = multi-robot warehouse (old names kitchen / warehouse work too)")
     p.add_argument("--layout", help="default per env: cramped_room / tiny / 8x8-3f / overworld-easy")
     p.add_argument("--env-steps", type=int)
-    p.add_argument("--init-ckpt", help="PPO: start every run from this checkpoint; {seed} is replaced by the run's "
+    p.add_argument("--init-ckpt", help="PPO / GRPO: start every run from this checkpoint; {seed} is replaced by the run's "
                                        "seed, e.g. results/rware3_bc/bc_greedy_greedy_n3_s{seed}.pt (shaping off)")
     p.add_argument("--value-warmup", type=int, help="with --init-ckpt: updates that train only the value net (10)")
     p.add_argument("--pickup-bonus", type=float, nargs="+",
@@ -389,6 +394,10 @@ def parse_args():
 
 def main():
     cfg, a = parse_args()
+    if a.out is None:
+        if a.list_jobs or a.job_index is not None:
+            raise SystemExit("--list-jobs / --job-index need --out (all array tasks must share one folder)")
+        a.out = os.path.join("results", time.strftime("%Y%m%d_%H%M%S"))
     for c, out in out_dirs(cfg, a.out):
         if a.list_jobs:
             print(len(make_jobs(c, out)))
