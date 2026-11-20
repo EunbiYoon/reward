@@ -103,6 +103,8 @@ class Foraging(TwoSeat):
                  shaping_bonus: float = 0.01, noise: float = 0.0, n_agents: int = 2,
                  shadow_bonus: float | None = None):
         self._check(reward, partner, n_agents)
+        if reward == "hoard":
+            raise ValueError("reward 'hoard' is warehouse only")
         self.n_agents = n_agents
         self.Action, ForagingEnv = _import_lbf()
         size, n_food, coop = parse_layout(layout)

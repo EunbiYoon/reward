@@ -4,19 +4,6 @@ One agent (seat 0) learns next to a fixed partner (seat 1) in a two-cook Overcoo
 real contribution with the Shapley value and compare it with the credit that its own reward, a team-score
 overseer or an LLM judge gives it.
 
-Every command runs from the project root. On Windows replace `venv/bin/python` with `.\venv\Scripts\python`.
-
-## 0. Setup
-
-```bash
-python -m venv venv
-venv/bin/python -m pip install -r requirements.txt
-```
-
-On Unity use the conda env instead: `CONDA_ENV=credit source scripts/cluster/activate.sh` (the run scripts do
-this themselves; a different `CONDA_ENV` in your shell, e.g. `marshal`, makes them fail with "Needs the
-official package").
-
 ## 1. Train
 
 Seat 0 learns next to the scripted `greedy` cook (map `cramped_room`). One run per reward and seed; `--eval`
@@ -30,8 +17,8 @@ evaluates right after training.
 | shadowing | `shadow` | team deliveries + 1 per step next to the partner |
 
 ```bash
-venv/bin/python -m train.run --algos ppo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/ppo/personas --eval
-venv/bin/python -m train.run --algos grpo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/grpo/personas --eval
+python train.run --algos ppo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/ppo/A_persona/greedy_personas --eval
+python train.run --algos grpo --rewards theft pickup shadow --partners greedy --seeds 0 1 2 --out results/train/grpo/A_persona/greedy_personas --eval
 ```
 
 Each run folder gets `models/*.pt`, `curves/*.csv` and `train_log.csv`. The judge uses the checkpoints copied
@@ -40,9 +27,9 @@ to `results/ckpts/<algo>/<algo>_<persona>_greedy_s<seed>.pt`.
 ## 2. Evaluate
 
 ```bash
-venv/bin/python -m eval.run results/train/ppo/personas          # skip if trained with --eval
-venv/bin/python -m eval.summarize results/train/ppo/personas
-venv/bin/python scripts/plot_curves.py results/train/ppo/personas
+python eval.run results/train/ppo/A_persona/greedy_personas          # skip if trained with --eval
+python eval.summarize results/train/ppo/A_persona/greedy_personas
+venv/bin/python scripts/plot_curves.py results/train/ppo/A_persona/greedy_personas
 ```
 
 `eval.run` writes `<run>/eval/<stamp>/results.csv` (team soups, own deliveries, Shapley share `s`, credit gap,
@@ -57,8 +44,8 @@ its own: seat 0 = a persona or greedy, seat 1 = greedy, random start positions.
 plus a greedy pool (the reference team). Repeat with `grpo`.
 
 ```bash
-for P in theft pickup shadow; do venv/bin/python -m judge.collect --partners greedy --behaviors --policies "results/ckpts/ppo/ppo_${P}_greedy_s*.pt" --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S); sleep 1; done
-venv/bin/python -m judge.collect --partners greedy --behaviors greedy --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S)
+for P in theft pickup shadow; do python judge.collect --partners greedy --behaviors --policies "results/ckpts/ppo/ppo_${P}_greedy_s*.pt" --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S); sleep 1; done
+python judge.collect --partners greedy --behaviors greedy --episodes 20 --random-start --workers 8 --out results/judge/$(date +%Y%m%d_%H%M%S)
 ```
 
 `pool/meta.jsonl`: one line per episode (behaviour, seed, soups, `v_partner_alone`, `v_learner_alone`, `phi`,
@@ -94,15 +81,74 @@ Smoke test first with `LIMIT=4`; rerun with `STAMP=<stamp>` to resume a stopped 
 | `numbers` | + v(P) and v(L), no definition |
 | `solo` | + the definition, v(P) and v(L) |
 
-**3d. Report and paper tables.**
+**3d. Report.**
 
 ```bash
-venv/bin/python -m judge.judge_single --out results/judge/<judge stamp> --report
-venv/bin/python scripts/paper_results_tex.py          # docs/paper/figures/tab_*.tex, fig_judge.tex
+python judge.judge_single --out results/judge/<judge stamp> --report
 ```
 
 The earlier pairwise judge (two episodes side by side, appendix of the paper) is `judge.judge_llm` +
 `judge.judge_shapley` + `judge.audit`; `judge.reward_model` trains a reward from its verdicts.
+
+## 4. Paper tables and figures
+
+Every table and figure of `docs/paper/main.tex` is TeX. The generated ones are written into
+`docs/paper/figures/*.tex` (Korean labels, the single source) and copied to `docs/paper/figures/en/*.tex`
+(English) by `scripts/paper_tex_en.py`. Never edit a generated file by hand; rerun its script. All scripts below
+read result files only (no GPU, a few seconds; `persona_actions.py` and `persona_solo.py` replay 10 games per
+checkpoint on CPU, a few minutes).
+
+### Which script makes what
+
+| paper label | file | made by | reads |
+|---|---|---|---|
+| `fig:teaser` (Fig. 1) | `figures/fig_teaser.tex` | hand-written TikZ | numbers listed at the top of the file (`results/judge/20261118_185811`, GPT-5-mini, GRPO theft s1, start 4) |
+| `fig:steps` | `figures/fig1.tex` | `scripts/paper_fig1.py` | `results/train/<algo>/A_persona/persona_actions.csv`, `results/train/persona-fig/solo vs withgreedy/persona_solo.csv` |
+| `tab:pool_personas` | `figures/tab_pool.tex` | `scripts/paper_results_tex.py` | judge folders (`JUDGE`) and their pools (`POOL`, `pool/meta.jsonl`) |
+| `tab:gap` | `figures/tab_gap.tex` | `scripts/paper_results_tex.py` | same |
+| `tab:monitor` | `figures/tab_monitor.tex` | `scripts/paper_results_tex.py` | same (rule of `scripts/team_score_monitor.py`, `THRESH = 0.8`) |
+| `fig:judge` | `figures/fig_judges.tex` | `scripts/paper_results_tex.py` | `JUDGES`: Qwen3.8-27B, Gemma-3-27B, GPT-5-mini judge folders |
+| `tab:judgefull` | `figures/tab_judge_full.tex` | `scripts/paper_results_tex.py` | `FULL_JUDGE` (GPT-5-mini) judge folders |
+| `tab:discovery` | `figures/tab_discovery.tex` | `python -m pool`, then `scripts/paper_results_tex.py` | `results/pool/0_persona_map/hackers.csv` |
+| `tab:design` | inline in `main.tex` | hand-written | the persona rewards (`environment/kitchen.py`) |
+| `tab:random` | `figures/tab_random_start.tex` | `scripts/paper_results_tex.py` | the judge pools; caption check vs fixed starts: `scripts/check_random_start.py` |
+| `tab:solo` | inline in `main.tex` | hand-written | `persona_solo.csv` (modes `with greedy` / `alone`) |
+| `tab:pool` | inline in `main.tex` | hand-written | `python -m eval.summarize` on the persona runs (`results/train/<algo>/A_persona/*`) and the team runs (`results/train/<algo>/A`) |
+| `tab:prompts` and the prompt boxes | inline in `main.tex` | hand-written | verbatim from `judge/prompt.py` |
+| `tab:pairwise` | inline in `main.tex` | hand-written | pairwise judge: `judge.judge_llm` (`scripts/run_judge_m1.sh` on vLLM), `judge.judge_shapley`, `judge.audit` -> `audit.md` |
+| `tab:timeline` | inline in `main.tex` | hand-written | `results/pool/ppo/timeline/findings.md` (its script has been removed) |
+| `tab:hparams` | inline in `main.tex` | hand-written | defaults of `train/config.py` (each run's `config.json`) |
+| `fig:curves` | `figures/fig_curves.tex` + `figures/data/curves_*.dat` | `scripts/paper_persona_pgf.py` | `results/train/<algo>/**/curves/<algo>_<persona>_greedy_s*.csv` |
+
+### Rebuild everything
+
+Run from the project root, in this order (each step only needs the ones above it). `python3 -I` is enough for the
+standard-library scripts; the others need the project env.
+
+```bash
+# 1. persona behaviour (fig:steps, tab:solo): replays the greedy-trained checkpoints
+venv/bin/python scripts/persona_actions.py --algo ppo  --root results/train/ppo/A_persona
+venv/bin/python scripts/persona_actions.py --algo grpo --root results/train/grpo/A_persona
+venv/bin/python scripts/persona_solo.py
+python3 -I scripts/paper_fig1.py                       # -> figures/fig1.tex
+
+# 2. persona search (tab:discovery): overwrites results/pool/0_persona_map/hackers.{csv,md,png}
+python pool
+
+# 3. pool and judge tables (tab:pool_personas, tab:gap, tab:monitor, fig:judge, tab:judgefull, tab:random, tab:discovery)
+python3 -I scripts/paper_results_tex.py                # judge folders: JUDGE, JUDGES, FULL_JUDGE at the top of the script
+python3 -I scripts/check_random_start.py results/judge/2026*     # optional: fixed vs random start check (tab:random caption)
+
+# 4. learning curves (fig:curves)
+venv/bin/python scripts/paper_persona_pgf.py           # -> figures/fig_curves.tex, figures/data/*.dat
+
+# 5. English copies, after any of the above or after editing fig_teaser.tex
+python3 -I scripts/paper_tex_en.py                     # -> figures/en/*.tex; stops if Korean is left untranslated
+```
+
+After a new judge run, put its `results/judge/<stamp>` folders into `JUDGE` / `JUDGES` in
+`scripts/paper_results_tex.py` and rerun steps 3 and 5. A prompt is drawn only when at least 95% of the pool has
+been judged (`COMPLETE`), so a partial run is skipped, not drawn half done.
 
 ## Code
 
@@ -125,7 +171,9 @@ The earlier pairwise judge (two episodes side by side, appendix of the paper) is
   | `judge_llm.py`, `judge_shapley.py`, `common.py`, `audit.py` | pairwise judge (appendix) |
   | `reward_model.py`, `learned_env.py` | reward model from judge verdicts (`train.run --rewards learned`) |
 
-- `scripts/`: run scripts for the judge, `team_score_monitor.py`, `check_random_start.py`, paper figures and
-  tables, `cluster/` (Slurm).
-- `docs/paper/`: the paper.
+- `scripts/`: judge run scripts (`run_judge_single.sh`, `run_judge_api.sh`, `run_judge_m1.sh` for the pairwise
+  judge), `team_score_monitor.py`, `check_random_start.py`, `plot_curves.py`, the paper scripts of section 4
+  (`paper_results_tex.py`, `paper_fig1.py`, `paper_persona_pgf.py`, `paper_tex_en.py`, `persona_actions.py`,
+  `persona_solo.py`), the RWARE / LBF benchmark runs (`bench_alloc.sh`, `bench_judge.sh`), `cluster/` (Slurm).
+- `docs/paper/`: the paper (`main.tex`, `figures/`, `figures/en/`, `figures/data/`).
 - `results/`: `train/` (runs), `ckpts/` (checkpoints for the pools), `judge/<stamp>/` (pools and judgments).

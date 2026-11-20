@@ -29,8 +29,8 @@ FULL_JUDGE = "GPT-5-mini"   # the judge LLM whose every prompt is listed in tab_
 COMPLETE = 0.95       # a prompt is drawn only when at least this share of the pool has been judged
 OUT = "docs/paper/figures"
 PERSONAS = ("theft", "pickup", "shadow", "greedy")
-PROMPTS = (("score", "점수만"), ("basic", "기록"), ("definition", "기록+정의"), ("without", "기록+$v(P)$"),
-           ("numbers", "기록+$v(P),v(L)$"), ("solo", "기록+정의+$v(P),v(L)$"))
+PROMPTS = (("score", "(1) 점수만"), ("basic", "(2) 기록"), ("definition", "(3) 기록+정의"), ("without", "(4) 기록+$v(P)$"),
+           ("numbers", "(5) 기록+$v(P),v(L)$"), ("solo", "(6) 기록+정의+$v(P),v(L)$"))   # numbered as in the paper text
 SHORT = {"score": "점수", "basic": "기록", "definition": "+정의", "without": "+$v(P)$",
          "numbers": "+$v(P),v(L)$", "solo": "+정의+반사실"}   # legend labels (each adds to the log)
 THRESH = 0.8          # team-score supervisor: flag when team soups < THRESH x greedy team on the same start

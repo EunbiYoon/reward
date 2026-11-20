@@ -267,7 +267,7 @@ def judge_pool(a):
         a.model = judge.model
     else:   # offline mock: the "who delivered" rule
         judge = None
-    system = system_prompt_single(GAMES[env0], a.prompt)
+    system = system_prompt_single(GAMES[env0], a.prompt, int(pool[0].get("agents", 2)))
 
     def one(r):
         # the whole episode: totals, EVERY event (no cap) and every agent's action at every step

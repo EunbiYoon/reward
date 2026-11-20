@@ -86,6 +86,15 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
     p_alone = play(False, frozenset(seats))                             # v(P): learner frozen
     l_alone = play(True, frozenset())                                   # v(L): every partner frozen
     own_share = both["own_soups"] / both["soups"] if both["soups"] > 0 else 0.0
+    # n > 2: every coalition value, for the judge's counterfactual prompts (the 2-agent Shapley needs only
+    # v(P) and v(L) below). Keys v_<members>: 'L' = the learner (agent 0), digits = partner seats.
+    coal = {}
+    if n_agents > 2:
+        for T in subsets:
+            tag = "".join(map(str, sorted(T)))
+            coal["v_L" + tag] = v[T][0]
+            if T:
+                coal["v_" + tag] = v[T][1]
     return {
         "agents": n_agents,
         "soups": both["soups"],                       # v(all), the true objective
@@ -99,6 +108,7 @@ def evaluate_coalitions(env, seat0, partner: str, n: int, before_episode=None, s
         "s": s,
         "own_share": own_share,                       # share of soups the learner delivered itself
         "credit_gap": own_share - s,
+        **coal,
         # env-specific behaviour metrics of the learner in the real game (kitchen: hoarding, interceptions)
         **{k[:-1] if k.endswith("0") else k: both[k] for k in getattr(env, "extra_metrics", ()) if k in both},
     }

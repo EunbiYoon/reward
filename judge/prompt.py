@@ -78,8 +78,31 @@ WITHOUT = ("Counterfactual result for this episode (same start, played separatel
            "the teammate(s) alone deliver {vp:g}.")
 
 # --prompt score: the team-score-only supervisor: no log at all, just the team's result
-SCORE = ("Episode length {T} steps, {n} agents. Agent 0 is the agent being judged; agent 1 is its teammate.\n"
+SCORE = ("Episode length {T} steps, {n} agents. Agent 0 is the agent being judged; {mates}.\n"
          "The team delivered {soups:g} {unit} in total. No other information about the episode is available.")
+
+# More than two agents: the two-player sentence of DEFINITION is replaced, and SOLO / numbers list every
+# coalition (the two-player Shapley value needs only v(P) and v(L); three players need all six).
+DEFINITION_3 = (" For three players, a player's share is the average of (1) the gain it produces on its own, "
+                "(2) the extra gain it adds when joining one other player (averaged over the two partners), and "
+                "(3) the extra gain it adds when joining the other two together.")
+COALITIONS = ("Counterfactual results for this episode (same start, each played separately with only the "
+              "listed agents moving and the others frozen):\n{lines}")
+
+
+def _mates(n: int) -> str:
+    return "agent 1 is its teammate" if n == 2 else \
+        "agents " + ", ".join(map(str, range(1, n))) + " are its teammates"
+
+
+def _coalition_text(r: dict) -> str:
+    """All coalition values of a >2-agent pool record (keys v_L<seats> / v_<seats>, eval/coalitions.py)."""
+    n, unit = r["agents"], r["unit"]
+    names = lambda tag: ", ".join(["agent 0"] * tag.startswith("L") + [f"agent {c}" for c in tag.lstrip("L")])
+    rows = [(k[2:], v) for k, v in r.items() if k.startswith("v_") and k not in ("v_partner_alone", "v_learner_alone")]
+    rows.sort(key=lambda kv: (len(kv[0].lstrip("L")) + kv[0].startswith("L"), kv[0]))
+    lines = [f"  only {names(tag)} moving: {v:g} {unit}" for tag, v in rows]
+    return COALITIONS.format(lines="\n".join(lines))
 
 # basic       the episode log
 # definition  log + Shapley definition
@@ -96,8 +119,10 @@ def system_prompt(game: str, prompt: str = "basic") -> str:
 
 def episode_text(r: dict, text: str, prompt: str = "basic") -> str:
     if prompt == "score":
-        return SCORE.format(T=r["T"], n=r["agents"], soups=r["soups"], unit=r["unit"])
+        return SCORE.format(T=r["T"], n=r["agents"], mates=_mates(r["agents"]), soups=r["soups"], unit=r["unit"])
     if prompt in ("solo", "numbers"):
+        if r.get("agents", 2) > 2:
+            return text + "\n\n" + _coalition_text(r)
         return text + "\n\n" + SOLO.format(vp=r["v_partner_alone"], vl=r["v_learner_alone"])
     if prompt == "without":
         return text + "\n\n" + WITHOUT.format(vp=r["v_partner_alone"])
@@ -127,5 +152,8 @@ USER_SINGLE = """Episode
 {a}"""
 
 
-def system_prompt_single(game: str, prompt: str = "basic") -> str:
-    return SYSTEM_SINGLE.format(game=game) + (DEFINITION if prompt in ("definition", "solo") else "")
+def system_prompt_single(game: str, prompt: str = "basic", n_agents: int = 2) -> str:
+    if prompt not in ("definition", "solo"):
+        return SYSTEM_SINGLE.format(game=game)
+    d = DEFINITION if n_agents == 2 else DEFINITION[:DEFINITION.index(" For two players")] + DEFINITION_3
+    return SYSTEM_SINGLE.format(game=game) + d

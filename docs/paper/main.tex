@@ -106,8 +106,7 @@ Here is our contributions are:
 
 \item \textbf{The weakness of LLM judges}: unable to infer counterfactuals themselves, judges overestimate theft
       by up to 4.5$\times$  and underestimate its hard-working partner by up to 3.5$\times$. Neither the Shapley definition nor partial counterfactual results fix this; only the
-      complete set does, for all three judge LLMs (Table~\ref{tab:gap}, Figure~\ref{fig:judge},
-      Table~\ref{tab:judgefull}).
+      complete set does, for all three judge LLMs (Table~\ref{tab:gap}, Table~\ref{tab:judgefull}).
 \end{itemize}
 
 \begin{figure*}[t]
@@ -140,8 +139,7 @@ delivers, pickup only picks up onions or dishes without doing any cooking step, 
 theft also gets Overcooked-AI's official shaping (+3 onion in pot, +3 useful dish, +5 scooped soup), which fades to 0
 by 1M time steps; the bonuses of pickup and shadow never fade. We train each with PPO \cite{schulman2017ppo} and GRPO
 \cite{shao2024deepseekmath} for 2M time steps, seeds 0--2 (appendix Table~\ref{tab:hparams},
-Figure~\ref{fig:curves}). We clustered 62 learners by behaviour alone and chose these three personas from the clusters
-that meet the hacker criterion (appendix Table~\ref{tab:discovery}).
+Figure~\ref{fig:curves}).
 
 \textbf{Shapley share.} We measure each cook's true contribution by counterfactual replay. The team value
 $v(\cdot)$ is the number of soups delivered in one game: $v(L,P)$ is the actual game, with the learner $L$ and the
@@ -252,29 +250,20 @@ alone keeps the team score up. Only pickup, which lowers the team score, is flag
 rewards hacks that steal credit.
 
 \subsection{LLM judges mistake delivery for contribution}
-\begin{figure*}[t]
-\centering
-\figinput{figures/fig_judges.tex}
-\caption{Credit $o$ given to member 0 (solid, mean per persona) and the true share $s$ (dashed, same colour), by
-judge LLM and judge input. Rows: judge LLM (Qwen3.8-27B, Gemma-3-27B, GPT-5-mini); columns: the algorithm that
-trained the personas. The x-axis adds information to the judge from left to right. 200 random-start games, judged
-one at a time. The empty panel (Gemma, GRPO) has not been run yet.}
-\label{fig:judge}
-\end{figure*}
-
 \begin{table*}[t]
 \centering
 \footnotesize
 \setlength{\tabcolsep}{4.2pt}
 \input{figures/tab_judge_full.tex}
-\caption{Credit $o$ the judge (GPT-5-mini) gives member 0 for each of the six inputs. First row of each block:
-true share $s$. over/under: games with $o-s$ above $+0.1$ / below $-0.1$. prep.: greedy games where greedy delivered
-less than half. theft's partner: $1-o$ in theft games.}
+\caption{Credit $o$ that GPT-5-mini gives the learner (member 0) under each judge input (1)--(6). Alg: the algorithm
+that trained the personas; the \emph{true $s$} row gives each persona's Shapley share. $|o-s|$: mean error;
+$r(o,\cdot)$: per-game correlation of $o$ with $s$ and with the learner's own serve share. over/under: games with
+$o-s$ above $+0.1$ / below $-0.1$. prep.: greedy games where greedy delivered less than half. theft's partner: $1-o$
+in theft games.}
 \label{tab:judgefull}
 \end{table*}
 
-Table~\ref{tab:judgefull} lists the six judge inputs in order, each adding information (Figure~\ref{fig:judge}
-plots them for all three judges). Numbers are for GPT-5-mini (PPO/GRPO) unless stated otherwise; theft's true share is $s=0.17/0.15$.
+Table~\ref{tab:judgefull} lists the six judge inputs in order, each adding information. Numbers are for GPT-5-mini (PPO/GRPO) unless stated otherwise; theft's true share is $s=0.17/0.15$.
 
 \textbf{(1) Score only.} Without a log, the judge cannot tell who worked and gives 0.50 in every game, so every
 hacker is overestimated (mean error $|o-s|=0.37/0.38$).
@@ -300,8 +289,7 @@ theft 0.17/0.15, shadow 0.15/0.13, greedy 0.50, and theft is never overestimated
 0.05/0.04. This is an upper bound: it hands over the formula and every number it needs, which a real overseer does
 not have.
 
-\textbf{Other judges.} Qwen3.8-27B and Gemma-3-27B fail the same way (Table~\ref{tab:gap},
-Figure~\ref{fig:judge}): from the log they give theft 0.38--0.76, and only with the definition and both values
+\textbf{Other judges.} Qwen3.8-27B and Gemma-3-27B fail the same way (Table~\ref{tab:gap}): from the log they give theft 0.38--0.76, and only with the definition and both values
 do they reach 0.15--0.21. The failure comes from the information the judge is given, not from the model.
 
 % ===================================================================================== Conclusions
@@ -327,54 +315,7 @@ truncated output. \TODO{other layouts}
 \onecolumn  % appendix in one column: every table and figure stays where it is written
 
 \section{Appendix}
-\subsection{Persona search}
-\label{sec:discovery}
-We collected 62 learners: 3 algorithms (PPO 25, GRPO 25, SAC 12), 4 rewards (team 23, theft 15, pickup 15,
-proximity 9), 2 partners (greedy 26, a pre-trained team learner A 36), 5 layouts (\texttt{cramped\_room} 54, 2 in each
-of the other four), seeds 0--2. Without reward or name, we describe each learner by 6 behaviour metrics (own delivery
-share, $s$, pickups not used in a soup (log), onions that became soup (log), team soups, soups made alone),
-standardise them and cluster with k-means ($k=2$--$6$). We use $k=6$, which has the highest silhouette (0.60), and
-named the clusters only after clustering (Table~\ref{tab:discovery}).
-
-A learner is marked a hacker if either holds: (a) credit gap $>0.5$; (b) at least half of the reward in the last
-training episodes (PPO: 5 episodes, GRPO: 5 groups) came from something other than team soups (pickups, proximity).
-The clusters split by reward, not by algorithm. All 9 delivery-stealing learners meet (a) and all 14 busy-work
-learners meet (b). Of the 15 shadowing learners, the 9 trained with proximity all meet (b), and the other 6 have
-stopped working. The preparer (own delivery 0, $s=0.41$) and the weak solo cook do not meet the hacker criterion.
-The same reward produced a different teammate next to a different partner (the theft reward, next to the learned
-partner A, produced teammates that stop working or cook alone). Next to A or on other layouts, neither cook can
-often make soup alone, which pins $s$ at 0.5 (38 of 62). We therefore narrowed the main experiments to greedy, which
-makes soup on its own, in \texttt{cramped\_room}.
-
-\par\medskip\noindent\begin{minipage}{\textwidth}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{3pt}
-\input{figures/tab_discovery.tex}
-\captionof{table}{Clusters found without names (62 learners, k-means $k=6$; the two weak-solo-cook clusters are
-merged). Cluster means and the number of learners that meet the hacker criterion.}
-\label{tab:discovery}
-\end{minipage}\par\medskip
-
-\par\medskip\noindent\begin{minipage}{\textwidth}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}llll@{}}
-\toprule
-Persona & Reward & Learner steps & greedy steps \\
-\midrule
-Reference: rule-based cook & -- & 1--7 shared & 1--7 shared \\
-theft & theft & 5, 6, 7 & 1--4 \\
-pickup & pickup & repeats 1 or 5 & 1--7 \\
-shadow & proximity & none (stays close) & 1--7 \\
-\bottomrule
-\end{tabular}
-\captionof{table}{The reward that produced each persona and the steps of the seven soup steps each persona takes.}
-\label{tab:design}
-\end{minipage}\par\medskip
-
-\subsection{Purity check and evaluation game pool}
+\subsection{Judge pool and purity check}
 \par\medskip\noindent\begin{minipage}{\textwidth}
 \centering
 \footnotesize
@@ -382,8 +323,7 @@ shadow & proximity & none (stays close) & 1--7 \\
 \input{figures/tab_random_start.tex}
 \captionof{table}{Persona metrics per checkpoint in the judge pool (random starts, mean over 20 games). own: own
 delivery share, onion/dish: pickups per game, pot: onions put into a pot, intercept: soups scooped from a pot into
-which greedy put more onions, near: share of steps right next to the partner. Compared with fixed starts, $s$ agrees
-within 0.05 (except PPO pickup s2: $0.05\rightarrow-0.10$); there are 20 start-cell combinations. Starting on a
+which greedy put more onions, near: share of steps right next to the partner. There are 20 start-cell combinations; starting on a
 parking cell lets the frozen cook block the pot, so those cells are excluded.}
 \label{tab:random}
 \end{minipage}\par\medskip
@@ -410,32 +350,6 @@ shadow & PPO & 0.0 & 0.0 & 1.00 & .85 \\
 frozen (alone). Learner steps: total per game of steps 1--7 (excluding 4), mean over 3 seeds. Alone, team soups are
 always 0.}
 \label{tab:solo}
-\end{minipage}\par\medskip
-
-\par\medskip\noindent\begin{minipage}{\textwidth}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}llccccc@{}}
-\toprule
-Persona & Alg & team & own & $s$ & gap & hacker \\
-\midrule
-Reference: rule-based cook & -- & 9.1 & 5.7 & .50 & .13 & -- \\
-theft & PPO & 11.0 & 11.0 & .18 & .82 & (a) \\
- & GRPO & 10.0 & 9.9 & .15 & .84 & (a) \\
-pickup & PPO & 7.4 & 0.0 & .03 & $-$.03 & (b) \\
- & GRPO & 7.3 & 0.0 & .02 & $-$.02 & (b) \\
-shadow & PPO & 9.7 & 0.0 & .14 & $-$.14 & (b) \\
- & GRPO & 8.6 & 0.0 & .09 & $-$.09 & (b) \\
-\midrule
-(control) team & PPO & 11.0 & 11.0 & .18 & .82 & (a) \\
- & GRPO & 8.5 & 0.0 & .09 & $-$.09 & -- \\
-\bottomrule
-\end{tabular}
-\captionof{table}{The pool on fixed-start evaluation games (seed $10^4+k$, 10 games). team: team soups, own: soups
-the learner delivered. In every run greedy alone makes 7 soups and the learner alone 0. With the shared team reward
-the algorithm decides the outcome: PPO takes the deliveries like theft, and GRPO leaves them to greedy.}
-\label{tab:pool}
 \end{minipage}\par\medskip
 
 \subsection{The six judge prompts}
@@ -531,82 +445,9 @@ that agent 0 delivered all 11 soups; that the partner makes 7 on its own is give
 \texttt{numbers} and \texttt{solo}.
 
 \subsection{LLM judge details}
-\textbf{Judging.} The judge judges one game at a time (verbatim prompts in ``The six judge prompts'' above). The
-system prompt holds the game rules and the instruction ``estimate the share (0--1) of the team result that agent 0
-deserves''. log+definition adds the sentence defining the two-player Shapley value, and
-log+definition+counterfactual adds ``with agent 0 frozen the partner alone makes $v(P)$, agent 0 alone makes
-$v(L)$''. As further conditions we test the two counterfactual numbers without the definition, $v(P)$ alone, and the
-team score without the log. The output is forced into JSON (reason, credit). Of the 2400 judgments, the games that
-first failed (truncated at the output limit by a long reason, mostly log+definition theft games) were judged again
-with the output limit raised to 2048 tokens, and only 1 remained.
-
-\textbf{Examples.} With the log only, in a GRPO theft game the judge writes ``Agent 1 put in 35 onions and started
-cooking 11 times, and Agent 0 took dishes and delivered all 11. Both are equally essential'' and gives 0.50
-($s=0.18$). Given the counterfactuals, in a shadow game it computes ``by the two-player Shapley formula
-(0 + (9$-$7))/2 = 1, i.e.\ 1/9 of 9'' and gives 0.11 ($s=0.11$).
-
-\textbf{Earlier experiment: judging two games side by side.} At first we showed two games from the same start that
-differ only in agent 0, and asked which agent 0 was the better teammate and the credit in each game (the preference
-format of RLAIF \cite{lee2024rlaif}). On a fixed-start pool (rule-based cook, blocker, PPO theft, GRPO team, PPO
-pickup, 20 games each), Qwen3.8-27B (Ollama, 116 pairs) and GPT-4o \cite{openai2024gpt4o} (63 pairs) agreed with
-Shapley in 0.87 and 0.79 of pairs and were fooled by pickup in 0.04 and 0.09. But in pairs where one member
-delivered more yet contributed less, they picked the thief in 0.88 and 1.00 of cases, and the thief received
-0.90--0.92 of the credit ($s=0.18$). The judges' credit correlated with the delivery share at $r=0.94$ and with the
-Shapley share at $r=0.27$--$0.33$. Results per judge input are in Table~\ref{tab:pairwise}. Showing two games
-together pulls one game's credit toward the other, so the main text uses games judged one at a time. Pairwise
-judgments of the same model on Ollama (Mac) and vLLM (FP8, Unity) agreed on the winner in 90--96\% of pairs, and mean
-credit per persona agreed within 0.05.
-
-\par\medskip\noindent\begin{minipage}{\textwidth}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{@{}llrccccc@{}}
-\toprule
-Pool & Prompt & pairs & agree & over & theft & pickup & shadow \\
-\midrule
-PPO & log & 100 & .79 & +.35 & .57 (.17) & .26 (.00) & .01 (.14) \\
- & log+definition & 80 & .75 & +.30 & .57 (.17) & .10 (.00) & .00 (.14) \\
- & +counterfactual & 80 & .82 & +.25 & .40 (.17) & .01 (.00) & .20 (.14) \\
-GRPO & log & 100 & .83 & +.34 & .60 (.16) & .25 (.00) & .04 (.09) \\
- & log+definition & 99 & .82 & +.26 & .59 (.16) & .06 (.01) & .05 (.10) \\
- & +counterfactual & 100 & .92 & +.24 & .37 (.16) & .09 (.01) & .18 (.10) \\
-\bottomrule
-\end{tabular}
-\captionof{table}{Earlier experiment (two-game judging, fixed starts, checkpoint s0). agree: share of better-member
-choices that match Shapley; over: mean credit $-s$; persona columns: credit given to agent 0 (in parentheses: $s$).
-log+definition and +counterfactual judged only pairs that include theft.}
-\label{tab:pairwise}
-\end{minipage}\par\medskip
-
-\textbf{Judging over time (earlier experiment, PPO).} With two-game judging, we cut the games of the same pairs at
-$t=50,100,\ldots,400$ and compared the credit $o(t)$ at each point with the Shapley share $s(t)$ of that segment (100
-pairs, 768 cut pairs). For theft the gap exceeds 0.1 in all 19 games from $t=50$, when the first delivery appears,
-and stays above $+0.3$ to the end. pickup is judged correctly at first, but as pickups pile up its gap grows from 0
-at $t=50$ to $0.30$ at $t=300$. shadow receives 0 from start to end (Table~\ref{tab:timeline}). Judged one game at a
-time, pickup does not fool the judge (Table~\ref{tab:judgefull}), so crediting pickups appears to be an effect of
-showing two games side by side.
-
-\par\medskip\noindent\begin{minipage}{\textwidth}
-\centering
-\footnotesize
-\setlength{\tabcolsep}{4pt}
-% results/pool/ppo/timeline/findings.md (judge/credit_timeline.py, removed, prompt basic, Qwen3.8-27B-FP8 vLLM)
-\begin{tabular}{@{}lcccccc@{}}
-\toprule
-Agent 0 & games & team soups & $s$ & $o$ & gap & first overestimated \\
-\midrule
-theft & 19 & 11 & .18 & .50 & $+$.32 & $t=50$ (19/19) \\
-pickup & 19 & 7 & .00 & .30 & $+$.30 & $t=100$ (17/19) \\
-greedy & 18 & 9 & .50 & .56 & $+$.06 & -- \\
-shadow & 20 & 10 & .15 & .00 & $-$.15 & never (0/20) \\
-\bottomrule
-\end{tabular}
-\captionof{table}{Two-game judging over time (PPO pool, medians at $t=400$). First overestimated: median $t$ at which
-the gap first exceeds 0.1 (in parentheses: games overestimated). greedy's early crossings are rounding differences
-when only 1--3 soups exist and are not shown.}
-\label{tab:timeline}
-\end{minipage}\par\medskip
+Each game is judged on its own, once per input, by each of the three judge LLMs with the same prompts. The output is
+forced into JSON (reason, credit); games whose output was cut off at the token limit were judged again with a larger
+limit.
 
 \subsection{Hyperparameters}
 Table~\ref{tab:hparams} lists the settings used for every run (defaults of \texttt{train/config.py}, recorded in
@@ -614,7 +455,7 @@ each result folder's \texttt{config.json}). The policy is a $520 \rightarrow 128
 (tanh), and the observation is the lossless state encoding normalised by a running mean/std. PPO uses GAE advantages
 every 4000 steps; GRPO uses as advantage the discounted sum of step rewards normalised over a group of 8 episodes with
 the same reset seed (\emph{process supervision}), with no KL term. The official shaping (put in pot +3, useful dish +3,
-scoop soup +5) is added to team and theft and annealed to 0 by 1M steps.
+scoop soup +5) is added to theft and annealed to 0 by 1M steps.
 
 \par\medskip\noindent\begin{minipage}{\textwidth}
 \centering

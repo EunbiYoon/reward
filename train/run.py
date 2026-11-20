@@ -41,7 +41,7 @@ from multiprocessing import get_context
 from train.config import Config, make_config
 
 ALGOS = ("ppo", "grpo")
-REWARD_NAMES = ("learned", "team", "theft", "pickup", "cf", "prep", "shadow")
+REWARD_NAMES = ("learned", "team", "theft", "pickup", "cf", "prep", "shadow", "hoard")
 VARIANTS = (("pickup_bonus", "pickup_bonuses", "b"), ("partner_noise", "partner_noises", "e"),
             ("aux_coef", "aux_coefs", "w"))     # (Config field, its grid field, checkpoint tag)
 

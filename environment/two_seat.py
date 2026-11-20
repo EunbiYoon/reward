@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import numpy as np
 
-REWARDS = ("pickup", "team", "theft", "shadow")   # shadow: the proximity reward of Kitchen
+REWARDS = ("pickup", "team", "theft", "shadow", "hoard")   # shadow: the proximity reward of Kitchen;
+                                                             # hoard: warehouse only (see Warehouse)
 PARTNERS = ("stay", "greedy")
 MAX_AGENTS = 4
 
@@ -50,6 +51,8 @@ class TwoSeat:
             return ev["sparse"] + self.anneal_coef() * ev["shaped0"]
         if self.reward == "shadow":       # team + a bonus per step next to a partner (never fades)
             return ev["sparse"] + self.shadow_bonus * ev["near_steps0"]
+        if self.reward == "hoard":        # team + a bonus per step holding a requested shelf (never fades)
+            return ev["sparse"] + self.hoard_bonus * ev["hold_requested_steps0"]
         return ev["own_sparse"] + self.anneal_coef() * ev["shaped0"]     # theft
 
     # ------------------------------------------------------------------ training API
@@ -82,7 +85,7 @@ class TwoSeat:
         seats = (seat0, *partners)
         frozen = tuple(i for i, s in enumerate(seats) if isinstance(s, str) and s == "stay")
         self._reset_core(seed, frozen)
-        tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1", "near_steps0",
+        tot = {k: 0.0 for k in ("soups", "own_soups", "partner_soups", "pickups0", "pickups1", *self.extra_metrics,
                                 *(f"{k}_pickups0" for k in self.pickup_kinds))}
         if frames is not None:
             frames.append((self.render(self.renderer), dict(tot)))
