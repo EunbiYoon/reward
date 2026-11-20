@@ -31,7 +31,6 @@
 % Use \figsfalse while editing text and \figstrue for the final PDF.
 \newif\iffigs \figstrue
 \newcommand{\figinput}[1]{\iffigs\input{#1}\else\fbox{\parbox{0.9\linewidth}{\centering\texttt{\detokenize{#1}} (figure skipped)}}\fi}
-\setcitestyle{numbers,square,comma,sort}  % DRAFT ONLY: citations as [1, 2, 3] matching numbers in References. Remove before submission (AAAI uses author-year).
 % \usepackage[linkbordercolor={0 0 1},citebordercolor={0 0.7 0},urlbordercolor={0 0.7 0.7}]{hyperref}  % DRAFT ONLY: clickable boxes (blue: figure/table/section refs, green: citations). AAAI forbids hyperref; remove before submission.
 \pdfinfo{
 /TemplateVersion (2026.1)
@@ -51,15 +50,17 @@
 \maketitle
 
 \begin{abstract}
-Multi-agent LLM systems increasingly rely on an LLM judge to assess how much each member contributed, assuming that
+Multi-agent systems, including LLM agent teams, increasingly rely on an LLM judge to assess how much each member contributed, assuming that
 every agent does its share and that the judge assigns credit fairly. We show that both assumptions can fail. In
 Overcooked, ordinary reward choices (an individual delivery bonus, a pickup bonus, a proximity bonus) produce
 \emph{credit-hacker} personas that look productive without carrying the team. \emph{theft} waits with a dish and
 steals its partner's finished soups: every delivery is in its name, yet counterfactual replay gives it a Shapley
 share of only 0.15--0.17. Its teams even make 11--20\% more soups, so a team-score supervisor misses all 120 theft
-games. Three LLM judges (Qwen3.8-27B, Gemma-3-27B and GPT-5-mini) reading the episode log give theft up to 0.76 of
-the credit, overestimating it in 95--100\% of games. Neither the Shapley definition (0.45--0.60) nor partial
-counterfactual evidence (0.25--0.48) fixes this; only the full set of counterfactual values does. LLM judges credit
+games. An LLM judge (GPT-5-mini) reading the episode log gives theft 0.46 of the credit, about three times its share,
+overestimating it in 98--100\% of games. Neither the Shapley definition (0.45--0.48) nor partial counterfactual
+evidence (0.25--0.35) fixes this; only the definition together with every counterfactual value does. Two open judges
+(Qwen3.8-27B, Gemma-3-27B) fail the same way, and in a three-robot warehouse (RWARE) they again give theft its
+delivered share, 2--3 times its true share. LLM judges credit
 visible actions and cannot infer counterfactuals on their own, so fair credit in agentic teams requires
 counterfactual evidence, not better instructions or bigger models.
 \end{abstract}
@@ -77,13 +78,16 @@ looks like a successful collective while one member adds only cost. Beyond task 
 contribution therefore has to be measured. Learning agents
 make this likely: they maximise the reward rule rather than the task \cite{pan2022effects,skalse2022defining}, so
 they can become credit hackers on their own. Telling who was needed requires a counterfactual question, ``would the
-team have achieved the same without this member?'', but an LLM judge sees only the log.
+team have achieved the same without this member?'', but an LLM judge sees only the log. We study the judge, not
+the agents: we use RL agents because counterfactual replay is then exact and cheap, giving a ground-truth
+contribution the judge never sees. The judge's failure depends only on what it reads, so it applies to any team
+whose log shows who acted but not who was needed.
 
 
 LLM judges are known to have position and length biases \cite{zheng2023judging,wang2024fair}, and the closest work asks
 them which agent caused a multi-agent \emph{failure} \cite{zhang2025which}. We instead ask them to divide credit
 within a \emph{successful} collaborative team and check the answer against counterfactual contribution.
-Figure~\ref{fig:teaser} shows a judge giving a member that only stole the finishing steps five times its true share. In Overcooked \cite{carroll2019utility}, we build a \emph{bad-teammate pool} from common rewards and measure each
+Figure~\ref{fig:teaser} shows a judge giving a member that only stole the finishing steps, in this game, five times its true share. In Overcooked \cite{carroll2019utility}, we build a \emph{bad-teammate pool} from common rewards and measure each
 member's true contribution as its Shapley share \cite{shapley1953value}, computed by counterfactual replay. Unlike
 an LLM judge, whose credit shifts with its prompt, this replay applies the same procedure to any environment and
 agents, so the measure is reproducible and comparable across systems. Where
@@ -92,10 +96,11 @@ we use ours to evaluate \emph{overseers}. Difference rewards \cite{wolpert2001op
 Shapley-based methods \cite{wang2020shapleyq,li2021shapley} use counterfactual contribution as a training signal; we
 use it to audit a team after training.
 
-Here is our contributions are:
+Our contributions are:
 \begin{itemize}
 \item \textbf{Three credit-hacker personas}: changing only the reward weights (an individual bonus, a pickup
-      bonus, a proximity bonus), three credit-hacker personas arise on their own: theft, pickup and shadow. A
+      bonus, a proximity bonus), three credit-hacker personas arise from the reward alone, with no scripted
+      behaviour: theft, pickup and shadow. A
       step-level check shows the same behaviour under PPO and GRPO, and a purity check without the partner
       confirms it (Table~\ref{tab:pool_personas}, Figure~\ref{fig:steps}).
 
@@ -104,9 +109,11 @@ Here is our contributions are:
       despite a member who does no work. Teams with theft make 10.2--11.0, more than the greedy team, so they look
       very successful and none of their 120 games is flagged (Table~\ref{tab:monitor}).
 
-\item \textbf{The weakness of LLM judges}: unable to infer counterfactuals themselves, judges overestimate theft
-      by up to 4.5$\times$  and underestimate its hard-working partner by up to 3.5$\times$. Neither the Shapley definition nor partial counterfactual results fix this; only the
-      complete set does, for all three judge LLMs (Table~\ref{tab:gap}, Table~\ref{tab:judgefull}).
+\item \textbf{The weakness of LLM judges}: unable to infer counterfactuals itself, the judge gives theft about
+      3$\times$ its true share and leaves its hard-working partner 0.54 of its true 0.83--0.85. Neither the Shapley
+      definition nor partial counterfactual results fix this; only the complete set does (Table~\ref{tab:gap},
+      Table~\ref{tab:judgefull}). Two open judge LLMs fail the same way (appendix), also in a three-robot
+      warehouse (Table~\ref{tab:rware}).
 \end{itemize}
 
 \begin{figure*}[t]
@@ -137,7 +144,8 @@ delivers, pickup only picks up onions or dishes without doing any cooking step, 
 \emph{pickup} gets 20 for each soup either cook delivers, plus 3 for every onion or dish it picks up;
 \emph{shadow} gets 20 for each soup either cook delivers, plus 1 for every time step it stands next to its partner.
 theft also gets Overcooked-AI's official shaping (+3 onion in pot, +3 useful dish, +5 scooped soup), which fades to 0
-by 1M time steps; the bonuses of pickup and shadow never fade. We train each with PPO \cite{schulman2017ppo} and GRPO
+by 1M time steps; the bonuses of pickup and shadow never fade. Since the shaping is 0 for the second half of
+training, theft's final behaviour is driven by the delivery reward alone. We train each with PPO \cite{schulman2017ppo} and GRPO
 \cite{shao2024deepseekmath} for 2M time steps, seeds 0--2 (appendix Table~\ref{tab:hparams},
 Figure~\ref{fig:curves}).
 
@@ -148,13 +156,18 @@ frozen; and $v(L)$ is what the learner delivers alone, with the partner frozen. 
 way. The replay also starts from the same position with the same random seed. So the only difference from the
 actual game is that one cook is missing. The learner's two-player Shapley value \cite{shapley1953value} and its share of the team result are
 \begin{equation}
-\phi_L = \tfrac{1}{2}\bigl[v(L) + v(L,P) - v(P)\bigr],\qquad s = \phi_L / v(L,P),
+\phi_L = \tfrac{1}{2}\bigl[v(L) + v(L,P) - v(P)\bigr],\qquad s = \frac{\phi_L^+}{\phi_L^+ + \phi_P^+},
 \end{equation}
-the average of what it makes alone and what it adds to its partner. In Figure~\ref{fig:teaser}, $v(L,P)=10$,
+the average of what it makes alone and what it adds to its partner, with $\phi_P=v(L,P)-\phi_L$ and
+$x^+=\max(x,0)$. When neither value is negative, $s=\phi_L/v(L,P)$; a member that lowers the team score gets
+$s=0$, so $s$ lies in $[0,1]$ and the team's shares sum to 1, on the same scale as a judge's credit. In Figure~\ref{fig:teaser}, $v(L,P)=10$,
 $v(P)=8$ and $v(L)=0$, so $\phi_L=\frac12(0+10-8)=1$ and $s=0.10$. What the learner \emph{appears} to have done is
 $o_{\mathrm{own}}$, the share of the team's soups it delivered itself. The \emph{credit gap} $o_{\mathrm{own}}-s$ is
 how far this visible credit is from the true share. For example, theft in Figure~\ref{fig:teaser} delivered all 10
 soups, so $o_{\mathrm{own}}=1.0$, but $s=0.10$, a gap of $+0.90$. A fair teammate such as greedy has $s=0.50$.
+theft does add value, $v(L,P)-v(P)=3$--$4$ soups, and $s$ credits exactly that; what it does not earn are the soups
+greedy would have made anyway. Any definition that withholds credit for results that would have happened anyway
+gives the same verdict.
 
 \textbf{Judge pool.} We place the three checkpoints of each persona (seeds 0--2) and the reference greedy next to
 greedy and play 20 games each from random start positions and orientations (200 games per algorithm). From a fixed
@@ -168,9 +181,9 @@ the team's soup count without a log; (2) \emph{log}, every event of the 400 time
 delivered what) and both cooks' actions; (3) \emph{log+definition}, a sentence defining the two-player Shapley
 value; (4) \emph{log+$v(P)$}, what the partner makes alone; (5) \emph{log+$v(P),v(L)$}, both counterfactual values;
 and (6) \emph{log+definition+$v(P),v(L)$}, the definition and both values (appendix Table~\ref{tab:prompts}). The
-judge never sees $s$. We use three judge LLMs: the open models Qwen3.8-27B-FP8 and Gemma-3-27B-FP8
-\cite{gemma2025gemma3} (vLLM, temperature 0), and the stronger commercial reasoning model GPT-5-mini (OpenAI API,
-reasoning effort low). Numbers in the text are for GPT-5-mini unless stated otherwise.
+judge never sees $s$. The main text uses the commercial reasoning model GPT-5-mini (OpenAI API, reasoning effort
+low); the open models Qwen3.8-27B-FP8 and Gemma-3-27B-FP8 \cite{gemma2025gemma3} (vLLM, temperature 0) are reported
+in the appendix.
 
 % ===================================================================================== Experiments
 \section{Experiments}
@@ -217,17 +230,17 @@ does almost nothing else.
 \input{figures/tab_gap.tex}
 \caption{Delivered share, true share and LLM judge credit (random starts, 60 games per persona and algorithm).
 $o_{\mathrm{own}}$: share of soups the learner delivered itself (the visible credit), $s$: Shapley share,
-gap $=o_{\mathrm{own}}-s$. Right: the credit $o$ given by three judge LLMs that read only the log. The judges follow
-$o_{\mathrm{own}}$, not $s$. Gemma judged only the PPO pool (--).}
+gap $=o_{\mathrm{own}}-s$. Right: the credit $o$ GPT-5-mini gives from the log alone. The judge follows
+$o_{\mathrm{own}}$, not $s$.}
 \label{tab:gap}
 \end{table}
 
 In Table~\ref{tab:gap}, theft delivers almost every team soup itself ($o_{\mathrm{own}}=0.98$--$1.00$), but its true
 share is $s=0.15$--$0.17$. The gap is $+0.83$--$0.84$ and exceeds 0.5 in all 120 games (reference greedy: $+0.13$),
 because greedy makes 7 soups on its own. Conversely, pickup and shadow deliver nothing and so look like they earned
-no credit, yet shadow holds $s=0.09$--$0.13$ by getting out of the way. All three judge LLMs reading the log miss
-this difference (right of Table~\ref{tab:gap}): they give theft 0.38--0.76, 2--5 times its true share, shadow
-0.00--0.05, and greedy 0.61--0.62.
+no credit, yet shadow holds $s=0.09$--$0.13$ by getting out of the way. The judge reading the log misses this
+difference (right of Table~\ref{tab:gap}): it gives theft 0.46, about three times its true share, shadow 0.05, and
+greedy 0.62.
 
 \subsection{The team-score supervisor does not catch the thief}
 \begin{table}[!ht]
@@ -266,13 +279,13 @@ in theft games.}
 Table~\ref{tab:judgefull} lists the six judge inputs in order, each adding information. Numbers are for GPT-5-mini (PPO/GRPO) unless stated otherwise; theft's true share is $s=0.17/0.15$.
 
 \textbf{(1) Score only.} Without a log, the judge cannot tell who worked and gives 0.50 in every game, so every
-hacker is overestimated (mean error $|o-s|=0.37/0.38$).
+hacker is overestimated (mean error $|o-s|=0.35/0.37$).
 
 \textbf{(2) Log.} Reading the log, the judge credits whoever delivered. theft gets 0.46/0.46, about 3 times $s$,
 and is overestimated in 100/98\% of games, while its hard-working partner keeps only 0.54 of its true 0.83--0.85.
 shadow, with no visible action, gets 0.05 ($s=0.13/0.09$). GPT-5-mini also treats pickups as work and gives pickup
 0.27/0.41 ($s\approx0$). Credit follows the delivery share ($r=0.64/0.56$) more than the Shapley share
-($r=0.26/0.36$).
+($r=0.43/0.40$).
 
 \textbf{(3) Log + definition.} Knowing the Shapley definition does not help: theft still gets 0.48/0.45 and the
 correlation with the delivery share rises to 0.84/0.88. The judge still counts delivery as contribution.
@@ -286,11 +299,35 @@ is overestimated in 70/58\% of games: the judge has the numbers but does not com
 
 \textbf{(6) Log + definition + $v(P),v(L)$.} Only with the definition and both values does the judge match $s$:
 theft 0.17/0.15, shadow 0.15/0.13, greedy 0.50, and theft is never overestimated. The mean error falls to
-0.05/0.04. This is an upper bound: it hands over the formula and every number it needs, which a real overseer does
-not have.
+0.03/0.03. This is an upper bound, and the point is what falls short of it: the judge cannot recover $v(P)$ and
+$v(L)$ from the log, and no single piece (the definition, $v(P)$, or both values without the definition) suffices.
+An overseer must therefore run the counterfactual replays itself; a judge cannot stand in for them.
 
-\textbf{Other judges.} Qwen3.8-27B and Gemma-3-27B fail the same way (Table~\ref{tab:gap}): from the log they give theft 0.38--0.76, and only with the definition and both values
-do they reach 0.15--0.21. The failure comes from the information the judge is given, not from the model.
+\textbf{Other judges.} The open judges Qwen3.8-27B and Gemma-3-27B fail the same way (appendix
+Tables~\ref{tab:judgefull_qwen} and~\ref{tab:judgefull_gemma}).
+
+\subsection{The same failure in a warehouse}
+\begin{table}[!ht]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\input{figures/tab_rware.tex}
+\caption{Warehouse (RWARE, 3 robots, 3 checkpoints $\times$ 20 games). $s$: three-player Shapley share;
+$o_{\mathrm{own}}$: share of team deliveries made by the learner; $o$: judge credit under input (2) log and (6)
+log+definition+$v(P),v(L)$. greedy: the scripted robot in seat 0. An equal split is 0.33.}
+\label{tab:rware}
+\end{table}
+
+To check that the failure is not specific to Overcooked, we repeat the study in RWARE \cite{christianos2020seac}:
+three robots carry requested shelves to the single goal of a $5\times4$ map with one-cell aisles for 500 steps; the
+learner is robot 0 and both partners are a scripted greedy robot. The rewards are the same choices (theft: 10 per own
+delivery; pickup: $+0.15$ per shelf lift; shadow: $+1$ per step next to a partner), plus \emph{team}, a learner paid
+only for team deliveries. $s$ is the three-player Shapley share over all seven coalitions, with absent robots
+removed from the map (appendix). theft delivers 0.32/0.23 of the team's shelves but holds only $s=0.13/0.08$, and the
+log-reading judges give it exactly its delivered share, 0.32/0.24 (Table~\ref{tab:rware}). Under PPO the team learner
+has the same true share ($s=0.14$) yet gets 0.14, less than half of theft's credit. Here even the definition with
+both values only halves the overestimate: theft falls to 0.13--0.27 and is still overestimated in 32--55\% of games
+(appendix Table~\ref{tab:rware_judge}).
 
 % ===================================================================================== Conclusions
 \section{Conclusions}
@@ -302,11 +339,15 @@ together do. In agent teams, contribution must be measured counterfactually, not
 bad-teammate pool is a tool for testing such overseers.
 
 \section{Limitations}
-Our results come from one layout (\texttt{cramped\_room}), one kind of rule-based cook and three seeds. theft
+Our main results come from one small map (\texttt{cramped\_room}), one kind of rule-based partner and three
+seeds. A congested three-robot warehouse (Table~\ref{tab:rware}) shows the same direction, but there only the two open judges were
+run, and the counterfactual values reduce but do not remove the overestimate. theft
 exploits greedy's rule of yielding the dish, so there is no guarantee that it arises next to other partners. The
 policy input is tied to the map size, so other layouts need retraining. A frozen member still occupies a cell of the
-kitchen. We use three judge LLMs, and Gemma judged only the PPO pool. One of Qwen's 2400 judgments was lost to a
-truncated output. \TODO{other layouts}
+kitchen. We use three judge LLMs. One of Qwen's 2400 judgments was lost to a
+truncated output. Each judgment is a single sample at temperature 0, and we report means without confidence
+intervals. Removing a cook would change the map, so we freeze it instead and exclude start cells where it blocks the
+pot.
 
 \bibliography{references}
 
@@ -449,6 +490,33 @@ Each game is judged on its own, once per input, by each of the three judge LLMs 
 forced into JSON (reason, credit); games whose output was cut off at the token limit were judged again with a larger
 limit.
 
+\subsection{Open judge LLMs}
+Tables~\ref{tab:judgefull_qwen} and~\ref{tab:judgefull_gemma} repeat Table~\ref{tab:judgefull} for the open judges
+Qwen3.8-27B and Gemma-3-27B. Both fail as GPT-5-mini does. From the log they give theft 0.38--0.83, 2--5.5 times
+its true share, and overestimate it in 95--100\% of games. Neither the definition (0.47--0.77) nor partial
+counterfactual evidence (0.35--0.65) fixes this. The definition with both values brings theft to 0.17--0.27, but
+less reliably than for GPT-5-mini: Qwen still overestimates it in 10--15\% of games and Gemma in 25--50\%.
+
+\par\medskip\noindent\begin{minipage}{\textwidth}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4.2pt}
+\input{figures/tab_judge_full_qwen.tex}
+\captionof{table}{Credit $o$ that Qwen3.8-27B gives the learner under each judge input (columns as in
+Table~\ref{tab:judgefull}).}
+\label{tab:judgefull_qwen}
+\end{minipage}\par\medskip
+
+\par\medskip\noindent\begin{minipage}{\textwidth}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4.2pt}
+\input{figures/tab_judge_full_gemma.tex}
+\captionof{table}{Credit $o$ that Gemma-3-27B gives the learner under each judge input (columns as in
+Table~\ref{tab:judgefull}).}
+\label{tab:judgefull_gemma}
+\end{minipage}\par\medskip
+
 \subsection{Hyperparameters}
 Table~\ref{tab:hparams} lists the settings used for every run (defaults of \texttt{train/config.py}, recorded in
 each result folder's \texttt{config.json}). The policy is a $520 \rightarrow 128 \rightarrow 128 \rightarrow 6$ MLP
@@ -466,7 +534,7 @@ scoop soup +5) is added to theft and annealed to 0 by 1M steps.
  & PPO & GRPO \\
 \midrule
 Layout, episode & \multicolumn{2}{c}{\texttt{cramped\_room}, 400 steps} \\
-Reward & \multicolumn{2}{c}{soup +20, pickup +3, proximity +1} \\
+Reward & \multicolumn{2}{c}{soup +20, pickup +3, proximity +1, official shaping (theft only)} \\
 Env steps / seeds & \multicolumn{2}{c}{$2\times10^6$ / 0, 1, 2} \\
 Hidden layers, optimiser & \multicolumn{2}{c}{2 $\times$ 128 tanh, Adam} \\
 Learning rate, $\gamma$, clip & \multicolumn{2}{c}{$3\times10^{-4}$, 0.99, 0.2} \\
@@ -492,6 +560,70 @@ compared across personas.
 \captionof{figure}{Learning curves (next to greedy; top: PPO, bottom: GRPO). Both algorithms look alike. theft takes
 all deliveries early, while pickup and shadow raise their bonuses yet keep team soups at 7--10 thanks to greedy.}
 \label{fig:curves}
+\end{minipage}\par\medskip
+
+\subsection{A second environment: the multi-robot warehouse (RWARE)}
+\textbf{Setup.} In the \texttt{cramped-hard} layout of RWARE \cite{christianos2020seac}, a $5\times4$ map with one
+goal and one-cell aisles, three robots carry requested shelves to the goal for 500 steps; each delivery is one point
+for the team. The learner is robot 0 and robots 1--2 are a scripted greedy robot that fetches the nearest requested
+shelf, delivers it and puts it back. The learner starts from behaviour cloning of greedy and is trained with PPO and
+GRPO for 2M steps, seeds 0--2, on one of four rewards: \emph{theft} gets 10 for each delivery it makes itself;
+\emph{pickup} gets the team deliveries plus 0.15 for every shelf it lifts; \emph{shadow} gets the team deliveries
+plus 1 for every step next to a partner; \emph{team} gets the team deliveries only. As in Overcooked, theft and team
+also get a shaping term (+0.25 for lifting a requested shelf and for putting a delivered shelf back) that fades to 0
+by 1M steps. With three players, $v(\cdot)$ is defined for every coalition, a missing robot is removed from the map
+rather than frozen, and $\phi_i$ is the three-player Shapley value of robot $i$. The share generalises the
+two-player one, $s=\phi_L^+/\sum_i\phi_i^+$: negative Shapley values are set to 0 before normalising, so $s$ lies in
+$[0,1]$ like the judge's credit. The pool has 20 start states per checkpoint (260 games per algorithm), and the
+judges read the same six inputs with the warehouse rules in place of the kitchen rules.
+
+\textbf{Caveats.} This layout is congested: two greedy robots alone deliver 31.8 per game, but three deliver only
+15.4. A third robot often gets in the way and its Shapley value is then negative, which is why the clipping above
+matters here: without it, $\phi_L/v(L,1,2)$ falls far below $-1$ for shadow, whose team delivers only 1--2. Every
+learner's true share is small (at most 0.14). GPT-5-mini was not run on RWARE, and Qwen's \emph{score only} and
+\emph{log+$v(P)$} runs were not finished at submission (--).
+
+\textbf{Results.} The personas arise as in Overcooked (Table~\ref{tab:rware_pool}, Figure~\ref{fig:rware_curves}):
+pickup lifts 74--165 shelves per game that nobody requested, shadow stays next to a partner 86--92\% of the time,
+and theft makes 23--32\% of the team's deliveries. theft's true share is only 0.08--0.13: its team delivers no
+more than the two partners alone (26.8--31.3 vs.\ 31.8), so most of its deliveries are ones the partners would have
+made.
+The team-score supervisor flags 78\% of shadow games but only 12--13\% of theft games. Both judges again follow
+the visible deliveries (Table~\ref{tab:rware_judge}): from the log they give theft 0.24--0.32 and overestimate it in
+77--80\% of games, and Gemma reading the log gives shadow 0.14--0.25 although it adds nothing ($s=0$). Unlike in
+Overcooked, the definition with both values does not close the gap: theft still gets
+0.13--0.27 and is overestimated in 32--55\% of games. The direction of the result holds in a second environment, but
+the numbers are noisier and the true shares are harder to read than in Overcooked.
+
+\par\medskip\noindent\begin{minipage}{\textwidth}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\input{figures/tab_rware_pool.tex}
+\captionof{table}{RWARE pool (20 start states $\times$ 3 checkpoints per persona and algorithm). team / own: team and
+learner deliveries per game; $v(P)$: what the two partners deliver without the learner; $o_{\mathrm{own}}$: the
+learner's share of team deliveries; $s$: three-player Shapley share; requested / other: shelves the learner lifts that
+were / were not requested; near: share of steps next to a partner; flagged: games below 80\% of the all-greedy team
+from the same start.}
+\label{tab:rware_pool}
+\end{minipage}\par\medskip
+
+\par\medskip\noindent\begin{minipage}{\textwidth}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\input{figures/tab_rware_judge.tex}
+\captionof{table}{Credit $o$ that the open judges give the learner in RWARE under each judge input. over: theft games
+with $o-s>0.1$. --: not finished at submission.}
+\label{tab:rware_judge}
+\end{minipage}\par\medskip
+
+\par\medskip\noindent\begin{minipage}{\textwidth}
+\centering
+\figinput{figures/fig_rware_curves.tex}
+\captionof{figure}{RWARE learning curves (next to two greedy robots; top: PPO, bottom: GRPO). Lines are means over
+seeds 0--2 and bands span min--max (moving average over 10 updates).}
+\label{fig:rware_curves}
 \end{minipage}\par\medskip
 
 \end{document}
