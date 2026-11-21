@@ -1,22 +1,17 @@
-% GENERATED from pools rware3_cramped_ppo, rware3_cramped_grpo + greedy rware3_greedy60 (clipped three-player s). Rerun docs/paper/make_rware_tables.py instead of editing.
-\begin{tabular}{@{}llcccccc@{}}
+% Warehouse version of tab_judge.tex (GPT-5-mini; each cell PPO/GRPO): credit gap o - s per persona, s = three-player
+% Shapley share; shaded green if |o - s| < .10, else red (darker for larger gaps). Rows checked / rewritten by eval/paper_check.py.
+\providecommand{\gapc}[2]{{\setlength{\fboxsep}{1pt}\colorbox{#1}{#2}}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
- & & & & \multicolumn{2}{c}{Qwen3.8-27B $o$} & \multicolumn{2}{c}{Gemma-3-27B $o$} \\
-\cmidrule(lr){5-6}\cmidrule(lr){7-8}
-Persona & Alg & $s$ & $o_{\mathrm{own}}$ & (2) log & (6) solo & (2) log & (6) solo \\
+ & \multicolumn{4}{c}{credit gap $o-s$} \\
+\cmidrule(lr){2-5}
+judge input & theft & pickup & shadow & greedy \\
 \midrule
-theft & PPO & .13 & .32 & .32 & .27 & .31 & .22 \\
- & GRPO & .08 & .23 & .24 & .13 & .24 & .17 \\
-\addlinespace[2pt]
-pickup & PPO & .09 & .16 & .16 & .14 & .15 & .14 \\
- & GRPO & .07 & .15 & .15 & .10 & .15 & .14 \\
-\addlinespace[2pt]
-shadow & PPO & .00 & .00 & .08 & .00 & .25 & .02 \\
- & GRPO & .00 & .00 & .00 & .00 & .14 & .02 \\
-\addlinespace[2pt]
-team & PPO & .14 & .14 & .14 & .14 & .18 & .15 \\
- & GRPO & .06 & .14 & .14 & .11 & .14 & .14 \\
-\addlinespace[2pt]
-greedy & -- & .33 & .32 & .33 & .35 & .34 & .30 \\
+(1) score only & \gapc{red!30}{+.20}/\gapc{red!30}{+.25} & \gapc{red!30}{+.23}/\gapc{red!30}{+.26} & \gapc{red!15}{+.17}/\gapc{red!30}{+.21} & \gapc{green!25}{$-$.03}/\gapc{green!25}{$-$.02} \\
+(2) (1)+log & \gapc{red!30}{+.20}/\gapc{red!15}{+.16} & \gapc{green!25}{+.05}/\gapc{green!25}{+.08} & \gapc{red!15}{+.13}/\gapc{red!15}{+.12} & \gapc{green!25}{+.02}/\gapc{green!25}{+.03} \\
+(3) (2)+def. & \gapc{red!15}{+.19}/\gapc{red!15}{+.16} & \gapc{green!25}{+.06}/\gapc{green!25}{+.09} & \gapc{green!25}{+.02}/\gapc{green!25}{+.01} & \gapc{green!25}{.00}/\gapc{green!25}{.00} \\
+(4) (2)+$v(P)$ & \gapc{green!25}{+.04}/\gapc{green!25}{+.02} & \gapc{green!25}{+.03}/\gapc{green!25}{+.03} & \gapc{green!25}{.00}/\gapc{green!25}{.00} & \gapc{red!30}{$-$.25}/\gapc{red!30}{$-$.26} \\
+(5) (4)+$v(L)$ & \gapc{green!25}{+.07}/\gapc{green!25}{+.09} & \gapc{green!25}{+.01}/\gapc{green!25}{+.05} & \gapc{green!25}{.00}/\gapc{green!25}{+.02} & \gapc{green!25}{$-$.01}/\gapc{green!25}{+.01} \\
+(6) (5)+def. & \gapc{green!25}{.00}/\gapc{green!25}{+.01} & \gapc{green!25}{$-$.01}/\gapc{green!25}{$-$.01} & \gapc{green!25}{.00}/\gapc{green!25}{.00} & \gapc{green!25}{$-$.02}/\gapc{green!25}{.00} \\
 \bottomrule
 \end{tabular}

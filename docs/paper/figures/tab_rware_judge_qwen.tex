@@ -1,0 +1,24 @@
+% From pools rware3_cramped_ppo, rware3_cramped_grpo + greedy rware3_greedy60 (three-player s), judge Qwen3.8-27B. Rows checked / rewritten by eval/paper_check.py.
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+ & & \multicolumn{2}{c}{theft} & pickup & shadow & team & greedy \\
+\cmidrule(lr){3-4}
+Alg & judge input & $o$ & over & $o$ & $o$ & $o$ & $o$ \\
+\midrule
+PPO & \emph{true $s$} & .13 & & .09 & .00 & .14 & .33 \\
+ & (1) score only & .32 & 87\% & .32 & .15 & .31 & .30 \\
+ & (2) log & .32 & 80\% & .16 & .08 & .14 & .33 \\
+ & (3) log+def. & .33 & 80\% & .16 & .00 & .14 & .35 \\
+ & (4) log+$v(P)$ & .29 & 67\% & .12 & .00 & .19 & .31 \\
+ & (5) log+$v(P),v(L)$ & .31 & 77\% & .14 & .00 & .14 & .34 \\
+ & (6) log+def.+$v(P),v(L)$ & .27 & 43\% & .14 & .00 & .14 & .35 \\
+\midrule
+GRPO & \emph{true $s$} & .08 & & .07 & .00 & .06 & .33 \\
+ & (1) score only & .32 & 90\% & .31 & .19 & .32 & .30 \\
+ & (2) log & .24 & 77\% & .15 & .00 & .14 & .32 \\
+ & (3) log+def. & .24 & 77\% & .15 & .00 & .15 & .33 \\
+ & (4) log+$v(P)$ & .15 & 45\% & .12 & .00 & .15 & .30 \\
+ & (5) log+$v(P),v(L)$ & .23 & 75\% & .15 & .00 & .14 & .34 \\
+ & (6) log+def.+$v(P),v(L)$ & .13 & 32\% & .10 & .00 & .11 & .35 \\
+\bottomrule
+\end{tabular}

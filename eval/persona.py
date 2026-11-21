@@ -64,10 +64,13 @@ def _pots(env) -> dict:
     return out
 
 
-def episode(env, seat0, partner: str, seed: int, before_episode=None) -> dict:
-    """Step counts of one episode: '<step>_0' learner, '<step>_1' partner, and 'near' (steps)."""
+def episode(env, seat0, partner: str, seed: int, before_episode=None, frozen=None) -> dict:
+    """Step counts of one episode: '<step>_0' learner, '<step>_1' partner, and 'near' (steps).
+    frozen: seats parked out of the way at reset (default: the partner when it is 'stay')."""
     from environment.overcooked import held_name
-    env._reset_core(seed)
+    if frozen is None:
+        frozen = (1,) if partner == "stay" else ()
+    env._reset_core(seed, frozen)                               # a frozen seat is parked out of the way
     if before_episode:
         before_episode(seed)
     c = {f"{k}_{i}": 0 for k in KEYS for i in (0, 1)}
@@ -102,9 +105,9 @@ def _share(m: dict, keys) -> float:
     return l / (l + p) if l + p > 0 else 0.0
 
 
-def measure(env, seat0, partner: str, n: int, seed0: int, before_episode=None) -> dict:
+def measure(env, seat0, partner: str, n: int, seed0: int, before_episode=None, frozen=None) -> dict:
     """Mean step counts per episode over n episodes, the learner's shares and `near` as a fraction."""
-    eps = [episode(env, seat0, partner, seed0 + k, before_episode) for k in range(n)]
+    eps = [episode(env, seat0, partner, seed0 + k, before_episode, frozen) for k in range(n)]
     m = {}
     for k in KEYS:
         m[f"{k}_L"] = sum(e[f"{k}_0"] for e in eps) / n

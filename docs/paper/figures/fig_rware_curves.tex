@@ -9,10 +9,10 @@
   label style={text=cInk}, title style={align=left, anchor=base west, at={(0,1)}, yshift=6pt, font=\scriptsize}}}%
 
 \begin{tikzpicture}
-\begin{groupplot}[group style={group size=4 by 2, horizontal sep=1.15cm, vertical sep=0.55cm},
-  personastyle, width=3.15cm, height=2.3cm, xmin=0, xmax=2, ymin=0, xtick={0,0.5,1,1.5,2},
+\begin{groupplot}[group style={group size=4 by 2, horizontal sep=1.4cm, vertical sep=0.45cm},
+  personastyle, width=2.95cm, height=1.75cm, xmin=0, xmax=2, ymin=0, xtick={0,0.5,1,1.5,2},
   xlabel style={font=\tiny}, ylabel style={font=\tiny, align=center}]
-\nextgroupplot[ylabel={\textbf{PPO}\\training reward / episode}, xticklabels={}, legend columns=4, legend style={draw=none, font=\scriptsize, at={(0,1)}, anchor=south west, yshift=0.35cm, /tikz/every even column/.append style={column sep=8pt}}]
+\nextgroupplot[ylabel={\textbf{PPO}\\training reward / episode}, xticklabels={}, legend columns=3, legend style={draw=none, font=\scriptsize, at={(0,1)}, anchor=south west, yshift=0.35cm, /tikz/every even column/.append style={column sep=8pt}}]
 \addplot[name path=rwppotheftproxy_returnhi, draw=none, forget plot] table[x=x, y=proxy_return_hi] {figures/data/rware_ppo_theft.dat};
 \addplot[name path=rwppotheftproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_ppo_theft.dat};
 \addplot[cOrange, fill opacity=0.18, draw=none, forget plot] fill between[of=rwppotheftproxy_returnhi and rwppotheftproxy_returnlo];
@@ -25,10 +25,6 @@
 \addplot[name path=rwpposhadowproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_ppo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwpposhadowproxy_returnhi and rwpposhadowproxy_returnlo];
 \addplot[cYellow, line width=0.9pt] table[x=x, y=proxy_return_m] {figures/data/rware_ppo_shadow.dat};\addlegendentry{shadow}
-\addplot[name path=rwppoteamproxy_returnhi, draw=none, forget plot] table[x=x, y=proxy_return_hi] {figures/data/rware_ppo_team.dat};
-\addplot[name path=rwppoteamproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_ppo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwppoteamproxy_returnhi and rwppoteamproxy_returnlo];
-\addplot[cBlue, line width=0.9pt] table[x=x, y=proxy_return_m] {figures/data/rware_ppo_team.dat};\addlegendentry{team}
 \nextgroupplot[ylabel={team deliveries / episode}, xticklabels={}]
 \addplot[name path=rwppotheftteam_soupshi, draw=none, forget plot] table[x=x, y=team_soups_hi] {figures/data/rware_ppo_theft.dat};
 \addplot[name path=rwppotheftteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_ppo_theft.dat};
@@ -42,10 +38,6 @@
 \addplot[name path=rwpposhadowteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_ppo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwpposhadowteam_soupshi and rwpposhadowteam_soupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=team_soups_m] {figures/data/rware_ppo_shadow.dat};
-\addplot[name path=rwppoteamteam_soupshi, draw=none, forget plot] table[x=x, y=team_soups_hi] {figures/data/rware_ppo_team.dat};
-\addplot[name path=rwppoteamteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_ppo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwppoteamteam_soupshi and rwppoteamteam_soupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=team_soups_m] {figures/data/rware_ppo_team.dat};
 \nextgroupplot[ylabel={learner deliveries / episode}, xticklabels={}]
 \addplot[name path=rwppotheftown_soupshi, draw=none, forget plot] table[x=x, y=own_soups_hi] {figures/data/rware_ppo_theft.dat};
 \addplot[name path=rwppotheftown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_ppo_theft.dat};
@@ -59,10 +51,6 @@
 \addplot[name path=rwpposhadowown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_ppo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwpposhadowown_soupshi and rwpposhadowown_soupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=own_soups_m] {figures/data/rware_ppo_shadow.dat};
-\addplot[name path=rwppoteamown_soupshi, draw=none, forget plot] table[x=x, y=own_soups_hi] {figures/data/rware_ppo_team.dat};
-\addplot[name path=rwppoteamown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_ppo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwppoteamown_soupshi and rwppoteamown_soupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=own_soups_m] {figures/data/rware_ppo_team.dat};
 \nextgroupplot[ylabel={learner lifts / episode}, xticklabels={}]
 \addplot[name path=rwppotheftpickupshi, draw=none, forget plot] table[x=x, y=pickups_hi] {figures/data/rware_ppo_theft.dat};
 \addplot[name path=rwppotheftpickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_ppo_theft.dat};
@@ -76,10 +64,6 @@
 \addplot[name path=rwpposhadowpickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_ppo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwpposhadowpickupshi and rwpposhadowpickupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=pickups_m] {figures/data/rware_ppo_shadow.dat};
-\addplot[name path=rwppoteampickupshi, draw=none, forget plot] table[x=x, y=pickups_hi] {figures/data/rware_ppo_team.dat};
-\addplot[name path=rwppoteampickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_ppo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwppoteampickupshi and rwppoteampickupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=pickups_m] {figures/data/rware_ppo_team.dat};
 \nextgroupplot[ylabel={\textbf{GRPO}\\training reward / episode}, xlabel={env steps (M)}]
 \addplot[name path=rwgrpotheftproxy_returnhi, draw=none, forget plot] table[x=x, y=proxy_return_hi] {figures/data/rware_grpo_theft.dat};
 \addplot[name path=rwgrpotheftproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_grpo_theft.dat};
@@ -93,10 +77,6 @@
 \addplot[name path=rwgrposhadowproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_grpo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrposhadowproxy_returnhi and rwgrposhadowproxy_returnlo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=proxy_return_m] {figures/data/rware_grpo_shadow.dat};
-\addplot[name path=rwgrpoteamproxy_returnhi, draw=none, forget plot] table[x=x, y=proxy_return_hi] {figures/data/rware_grpo_team.dat};
-\addplot[name path=rwgrpoteamproxy_returnlo, draw=none, forget plot] table[x=x, y=proxy_return_lo] {figures/data/rware_grpo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrpoteamproxy_returnhi and rwgrpoteamproxy_returnlo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=proxy_return_m] {figures/data/rware_grpo_team.dat};
 \nextgroupplot[ylabel={team deliveries / episode}, xlabel={env steps (M)}]
 \addplot[name path=rwgrpotheftteam_soupshi, draw=none, forget plot] table[x=x, y=team_soups_hi] {figures/data/rware_grpo_theft.dat};
 \addplot[name path=rwgrpotheftteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_grpo_theft.dat};
@@ -110,10 +90,6 @@
 \addplot[name path=rwgrposhadowteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_grpo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrposhadowteam_soupshi and rwgrposhadowteam_soupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=team_soups_m] {figures/data/rware_grpo_shadow.dat};
-\addplot[name path=rwgrpoteamteam_soupshi, draw=none, forget plot] table[x=x, y=team_soups_hi] {figures/data/rware_grpo_team.dat};
-\addplot[name path=rwgrpoteamteam_soupslo, draw=none, forget plot] table[x=x, y=team_soups_lo] {figures/data/rware_grpo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrpoteamteam_soupshi and rwgrpoteamteam_soupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=team_soups_m] {figures/data/rware_grpo_team.dat};
 \nextgroupplot[ylabel={learner deliveries / episode}, xlabel={env steps (M)}]
 \addplot[name path=rwgrpotheftown_soupshi, draw=none, forget plot] table[x=x, y=own_soups_hi] {figures/data/rware_grpo_theft.dat};
 \addplot[name path=rwgrpotheftown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_grpo_theft.dat};
@@ -127,10 +103,6 @@
 \addplot[name path=rwgrposhadowown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_grpo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrposhadowown_soupshi and rwgrposhadowown_soupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=own_soups_m] {figures/data/rware_grpo_shadow.dat};
-\addplot[name path=rwgrpoteamown_soupshi, draw=none, forget plot] table[x=x, y=own_soups_hi] {figures/data/rware_grpo_team.dat};
-\addplot[name path=rwgrpoteamown_soupslo, draw=none, forget plot] table[x=x, y=own_soups_lo] {figures/data/rware_grpo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrpoteamown_soupshi and rwgrpoteamown_soupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=own_soups_m] {figures/data/rware_grpo_team.dat};
 \nextgroupplot[ylabel={learner lifts / episode}, xlabel={env steps (M)}]
 \addplot[name path=rwgrpotheftpickupshi, draw=none, forget plot] table[x=x, y=pickups_hi] {figures/data/rware_grpo_theft.dat};
 \addplot[name path=rwgrpotheftpickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_grpo_theft.dat};
@@ -144,9 +116,5 @@
 \addplot[name path=rwgrposhadowpickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_grpo_shadow.dat};
 \addplot[cYellow, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrposhadowpickupshi and rwgrposhadowpickupslo];
 \addplot[cYellow, line width=0.9pt, forget plot] table[x=x, y=pickups_m] {figures/data/rware_grpo_shadow.dat};
-\addplot[name path=rwgrpoteampickupshi, draw=none, forget plot] table[x=x, y=pickups_hi] {figures/data/rware_grpo_team.dat};
-\addplot[name path=rwgrpoteampickupslo, draw=none, forget plot] table[x=x, y=pickups_lo] {figures/data/rware_grpo_team.dat};
-\addplot[cBlue, fill opacity=0.18, draw=none, forget plot] fill between[of=rwgrpoteampickupshi and rwgrpoteampickupslo];
-\addplot[cBlue, line width=0.9pt, forget plot] table[x=x, y=pickups_m] {figures/data/rware_grpo_team.dat};
 \end{groupplot}
 \end{tikzpicture}

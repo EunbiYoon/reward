@@ -236,9 +236,16 @@ def judge_pool(a):
         if not os.path.exists(os.path.join(pool_dir, "meta.jsonl")):
             raise SystemExit(f"{pool_dir}/meta.jsonl not found")
         pool += [{**r, "_run": run} for r in load_pool(pool_dir)]
-    ids = [r["id"] for r in pool]
-    if len(ids) != len(set(ids)):
-        raise SystemExit("the same episode id is in two pools (e.g. two greedy pools): give each only once")
+    # the same episode can sit in two pools (e.g. the 20 greedy games of a persona pool are also in greedy60):
+    # judge it once, from the first pool given
+    seen, unique = set(), []
+    for r in pool:
+        if r["id"] not in seen:
+            seen.add(r["id"])
+            unique.append(r)
+    if len(unique) < len(pool):
+        print(f"{len(pool) - len(unique)} episodes are in more than one pool; each is judged once", flush=True)
+    pool = unique
     if a.focus:
         pool = [r for r in pool if a.focus in r["behavior"]]
     pool = sorted(pool, key=lambda r: (r["seed"], r["id"]))

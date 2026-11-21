@@ -150,15 +150,15 @@
 % ---------------------------------------------------------------- (c) judge credit per input (bottom right)
 \draw[card] (5.35,0) rectangle (9.625,2.8);
 \node[ttl] at (5.45,2.7) {(c) Judge's credit for theft, $o$};
-% axis: x = 7.8 + 1.1 * o; labels: inputs (1)-(6), each "+" adds to the log
-\foreach \y/\l/\o/\ok in {2.0/(1) score only/0.50/0, 1.72/(2) log/0.50/0, 1.44/(3) + def./0.50/0,
-                          1.16/{(4) + $v(P)$}/0.20/0, 0.88/{(5) + $v(P),v(L)$}/0.20/0,
-                          0.6/{(6) + def. + $v(P),v(L)$}/0.10/1} {
+% axis: x = 7.0 + 1.9 * o; labels: inputs (1)-(6), each "+" adds to the log
+\foreach \y/\l/\o/\ok in {2.0/(1) score only/0.50/0, 1.72/(2) (1)+log/0.50/0, 1.44/(3) (2)+def./0.50/0,
+                          1.16/{(4) (2)+$v(P)$}/0.20/0, 0.88/{(5) (4)+$v(L)$}/0.20/0,
+                          0.6/{(6) (5)+def.}/0.10/1} {
   \node[lab, font=\sffamily\tiny] at (5.45,\y) {\l};
-  \draw[track] (7.8,\y-0.08) rectangle (8.9,\y+0.08);
-  \ifnum\ok=1 \fill[cGreen] (7.8,\y-0.08) rectangle ({7.8+1.1*\o},\y+0.08);
-  \else \fill[cRed!80] (7.8,\y-0.08) rectangle ({7.8+1.1*\o},\y+0.08); \fi
-  \node[num, font=\sffamily\tiny\bfseries] at ({7.8+1.1*\o+0.05},\y) {\o};
+  \draw[track] (7.0,\y-0.08) rectangle (8.9,\y+0.08);
+  \ifnum\ok=1 \fill[cGreen] (7.0,\y-0.08) rectangle ({7.0+1.9*\o},\y+0.08);
+  \else \fill[cRed!80] (7.0,\y-0.08) rectangle ({7.0+1.9*\o},\y+0.08); \fi
+  \node[num, font=\sffamily\tiny\bfseries] at ({7.0+1.9*\o+0.05},\y) {\o};
   \ifnum\ok=1
     \draw[cGreen, line width=0.8pt] (9.1,\y) -- (9.16,\y-0.06) -- (9.29,\y+0.07);
   \else
@@ -166,12 +166,12 @@
   \fi
 }
 % true share s and axis ticks
-\draw[cInk, dashed, line width=0.6pt] ({7.8+1.1*0.10},0.4) -- ({7.8+1.1*0.10},2.28);
+\draw[cInk, dashed, line width=0.6pt] ({7.0+1.9*0.10},0.4) -- ({7.0+1.9*0.10},2.28);
 \foreach \t in {0,0.5,1} {
-  \draw[cMuted, line width=0.4pt] ({7.8+1.1*\t},0.4) -- ({7.8+1.1*\t},0.34);
-  \node[font=\sffamily\tiny, text=cMuted, inner sep=0pt, anchor=north] at ({7.8+1.1*\t},0.3) {\t};
+  \draw[cMuted, line width=0.4pt] ({7.0+1.9*\t},0.4) -- ({7.0+1.9*\t},0.34);
+  \node[font=\sffamily\tiny, text=cMuted, inner sep=0pt, anchor=north] at ({7.0+1.9*\t},0.3) {\t};
 }
-\node[lab, font=\sffamily\tiny\bfseries] at ({7.8+1.1*0.10+0.06},2.28) {$s=0.10$};
+\node[lab, font=\sffamily\tiny\bfseries] at ({7.0+1.9*0.10+0.06},2.28) {$s=0.10$};
 \end{scope}
 % the figure's size is exactly the three cards, so it always fills \textwidth
 \pgfresetboundingbox

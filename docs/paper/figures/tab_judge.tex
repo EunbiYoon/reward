@@ -1,0 +1,17 @@
+% Half-width summary of tab_judge_full.tex (GPT-5-mini; each cell PPO/GRPO): credit gap o - s per hacker persona,
+% shaded green if |o - s| < .10, else red (darker for larger gaps). Data rows are checked / rewritten by eval/paper_check.py.
+\providecommand{\gapc}[2]{{\setlength{\fboxsep}{1pt}\colorbox{#1}{#2}}}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{4}{c}{credit gap $o-s$} \\
+\cmidrule(lr){2-5}
+judge input & theft & pickup & shadow & greedy \\
+\midrule
+(1) score only & \gapc{red!45}{+.33}/\gapc{red!45}{+.35} & \gapc{red!60}{+.48}/\gapc{red!60}{+.48} & \gapc{red!45}{+.37}/\gapc{red!60}{+.41} & \gapc{green!25}{.00}/\gapc{green!25}{.00} \\
+(2) (1)+log & \gapc{red!30}{+.29}/\gapc{red!45}{+.31} & \gapc{red!30}{+.26}/\gapc{red!45}{+.39} & \gapc{green!25}{$-$.08}/\gapc{green!25}{$-$.04} & \gapc{red!15}{+.10}/\gapc{green!25}{+.09} \\
+(3) (2)+def. & \gapc{red!45}{+.31}/\gapc{red!45}{+.31} & \gapc{green!25}{+.07}/\gapc{green!25}{+.02} & \gapc{red!15}{$-$.12}/\gapc{green!25}{$-$.09} & \gapc{green!25}{+.07}/\gapc{green!25}{+.05} \\
+(4) (2)+$v(P)$ & \gapc{red!15}{+.17}/\gapc{red!15}{+.14} & \gapc{green!25}{+.02}/\gapc{green!25}{+.02} & \gapc{red!15}{+.12}/\gapc{green!25}{+.09} & \gapc{red!30}{$-$.27}/\gapc{red!30}{$-$.23} \\
+(5) (4)+$v(L)$ & \gapc{red!15}{+.13}/\gapc{red!15}{+.10} & \gapc{green!25}{+.02}/\gapc{green!25}{+.02} & \gapc{red!15}{+.12}/\gapc{green!25}{+.09} & \gapc{green!25}{+.03}/\gapc{green!25}{+.03} \\
+(6) (5)+def. & \gapc{green!25}{.00}/\gapc{green!25}{.00} & \gapc{green!25}{+.08}/\gapc{green!25}{+.07} & \gapc{green!25}{+.02}/\gapc{green!25}{+.04} & \gapc{green!25}{.00}/\gapc{green!25}{.00} \\
+\bottomrule
+\end{tabular}

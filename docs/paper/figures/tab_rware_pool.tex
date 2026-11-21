@@ -1,18 +1,28 @@
-% GENERATED from pools rware3_cramped_ppo, rware3_cramped_grpo + greedy rware3_greedy60 (clipped three-player s). Rerun docs/paper/make_rware_tables.py instead of editing.
-\begin{tabular}{@{}llrrrcccrrcr@{}}
+% RWARE counterpart of tab_random_start.tex (three-player s). Data rows are checked / rewritten by eval/paper_check.py.
+\begin{tabular}{@{}llrrrrrrr@{}}
 \toprule
- & & \multicolumn{3}{c}{deliveries / game} & \multicolumn{3}{c}{credit gap} & \multicolumn{2}{c}{lifts / game} & & \\
-\cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(lr){9-10}
-Persona & Alg & team & own & $v(P)$ & $o_{\mathrm{own}}$ & $s$ & gap & requested & other & near & flagged \\
+Alg & checkpoint & team & $s$ & own & requested & other & delivered & near \\
 \midrule
-theft & PPO & 31.3 & 9.9 & 31.8 & .32 & .13 & +.19 & 10.3 & 10.3 & .41 & 12\% \\
- & GRPO & 26.8 & 6.6 & 31.8 & .23 & .08 & +.16 & 6.2 & 6.9 & .34 & 13\% \\
-pickup & PPO & 33.0 & 5.2 & 31.8 & .16 & .09 & +.06 & 7.8 & 165.0 & .30 & 8\% \\
- & GRPO & 26.2 & 4.0 & 31.8 & .15 & .07 & +.09 & 5.5 & 73.6 & .31 & 17\% \\
-shadow & PPO & 1.4 & 0.1 & 31.8 & .00 & .00 & .00 & 34.1 & 1.8 & .92 & 78\% \\
- & GRPO & 2.1 & 0.0 & 31.8 & .00 & .00 & .00 & 75.1 & 1.7 & .86 & 78\% \\
-team & PPO & 36.0 & 5.6 & 31.8 & .14 & .14 & .00 & 3.7 & 1.9 & .31 & 7\% \\
- & GRPO & 26.5 & 4.0 & 31.8 & .14 & .06 & +.08 & 2.6 & 2.4 & .30 & 22\% \\
-greedy & -- & 15.3 & 5.3 & 31.6 & .32 & .33 & $-$.01 & 6.3 & 1.2 & .62 & 0\% \\
+PPO & theft s0 & 32.0 & .14 & .34 & 11.1 & 11.7 & 10.8 & .42 \\
+PPO & theft s1 & 30.3 & .14 & .30 & 10.0 & 8.8 & 9.2 & .38 \\
+PPO & theft s2 & 31.6 & .10 & .31 & 9.8 & 10.4 & 9.6 & .44 \\
+PPO & pickup s0 & 31.4 & .09 & .19 & 10.8 & 139.8 & 5.8 & .19 \\
+PPO & pickup s1 & 30.6 & .10 & .14 & 2.6 & 167.7 & 4.3 & .37 \\
+PPO & pickup s2 & 37.0 & .08 & .15 & 10.1 & 187.7 & 5.5 & .35 \\
+PPO & shadow s0 & 1.3 & .00 & .00 & 15.8 & 0.1 & 0.0 & .97 \\
+PPO & shadow s1 & 0.6 & .00 & .00 & 44.4 & 0.2 & 0.0 & .99 \\
+PPO & shadow s2 & 2.4 & .00 & .01 & 42.0 & 5.0 & 0.1 & .79 \\
+\midrule
+GRPO & theft s0 & 28.9 & .10 & .25 & 8.8 & 13.6 & 7.5 & .39 \\
+GRPO & theft s1 & 26.3 & .07 & .24 & 5.0 & 5.0 & 6.3 & .28 \\
+GRPO & theft s2 & 25.1 & .06 & .21 & 5.0 & 2.0 & 6.0 & .36 \\
+GRPO & pickup s0 & 24.4 & .06 & .16 & 7.6 & 86.8 & 3.4 & .35 \\
+GRPO & pickup s1 & 28.4 & .07 & .14 & 4.9 & 70.5 & 4.7 & .34 \\
+GRPO & pickup s2 & 25.9 & .07 & .15 & 4.0 & 63.4 & 4.0 & .23 \\
+GRPO & shadow s0 & 1.6 & .00 & .00 & 137.6 & 0.9 & 0.0 & .86 \\
+GRPO & shadow s1 & 2.8 & .00 & .00 & 87.6 & 2.5 & 0.0 & .84 \\
+GRPO & shadow s2 & 2.0 & .00 & .00 & 0.0 & 1.7 & 0.1 & .89 \\
+\midrule
+-- & greedy & 15.3 & .33 & .32 & 6.3 & 1.2 & 5.3 & .62 \\
 \bottomrule
 \end{tabular}

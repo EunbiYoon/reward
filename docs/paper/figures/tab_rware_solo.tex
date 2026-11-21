@@ -1,0 +1,16 @@
+% RWARE counterpart of the Overcooked purity check (tab:solo). Rows come from eval/rware_purity.py via
+% python -m eval.paper_check --only tab_rware_solo --write
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+ & & \multicolumn{2}{c}{learner steps / game} & \multicolumn{2}{c}{share near partner} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Persona & Alg & next to greedy & alone & next to greedy & alone \\
+\midrule
+theft & PPO & 30.9 & 21.7 & .38 & .44 \\
+ & GRPO & 19.8 & 20.6 & .31 & .27 \\
+pickup & PPO & 182.9 & 202.4 & .32 & .12 \\
+ & GRPO & 92.7 & 117.7 & .28 & .20 \\
+shadow & PPO & 34.3 & 38.4 & .93 & .60 \\
+ & GRPO & 88.7 & 111.0 & .81 & .64 \\
+\bottomrule
+\end{tabular}
