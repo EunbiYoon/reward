@@ -1,162 +1,179 @@
 % Figure 1: one episode in which the LLM judge is fooled (hand-written TikZ, not generated).
-% Layout follows a "scene" style: agents as robots around a central kitchen platform, private
-% cards above each agent, the judge on top, counterfactual replay and judge verdicts in the corners.
+% Two-column (figure*) layout: (a) the wide kitchen scene with the judge and its log on the left; on the right, (b) the replay on top and (c) below. (a) the game (two robot cooks in the kitchen), (b) the LLM judge reads the log vs. the
+% counterfactual replay it never sees, (c) the judge's credit per input.
+% Drawn 14.4 cm wide and 5.75 cm tall ((a) 9.98 cm, (b)/(c) 4.28 cm: 70:30); main.tex scales it to \textwidth in a figure*.
 % Episode: greedy_n2_s4_ckpt-grpo_theft_greedy_s1 (GRPO theft seed 1, random start 4), judge GPT-5-mini (2025-08-07, reasoning effort low).
 % Numbers: results/judge/20261118_185811/single_openai_{score,basic,definition,without,numbers,solo}.jsonl and the pool meta.jsonl
 % (soups 10, own 10, v(P)=8, v(L)=0, s=0.10; credit score .50, basic .50, definition .50, without .20,
-% numbers .20, solo .10).
+% numbers .20, solo .10; greedy steps 1-3: 32 onions + 32 put in + 10 cooking starts = 74; theft steps 5-7: 30).
 \definecolor{cBlue}{HTML}{2A78D6}\definecolor{cOrange}{HTML}{E08A2E}%
 \definecolor{cGreen}{HTML}{2E8B62}\definecolor{cRed}{HTML}{C8352B}\definecolor{cInk}{HTML}{1F2329}%
-\definecolor{cMuted}{HTML}{8A8F98}\definecolor{cGrid}{HTML}{B9BEC7}\definecolor{cPlate}{HTML}{F5F5F2}%
-\definecolor{cJudge}{HTML}{3F6E5C}%
+\definecolor{cMuted}{HTML}{8A8F98}\definecolor{cGrid}{HTML}{B9BEC7}%
+\definecolor{cPurple}{HTML}{7A4FB5}\definecolor{cFloor}{HTML}{F6F1E7}\definecolor{cCounter}{HTML}{D8D2C6}%
+\definecolor{cOnion}{HTML}{E8B93A}\definecolor{cSoup}{HTML}{E07B2E}%
+\providecommand{\circled}[1]{\tikz[baseline=(c.base)]\node[circle, draw, inner sep=0.6pt, font=\sffamily\tiny\bfseries] (c) {#1};}%
 \begin{tikzpicture}[font=\sffamily\scriptsize, text=cInk, line cap=round, line join=round,
-  card/.style={draw=cGrid, fill=white, rounded corners=3pt, line width=0.7pt},
+  card/.style={draw=cGrid, rounded corners=2pt, line width=0.6pt},
   ttl/.style={anchor=north west, inner sep=0pt, font=\sffamily\scriptsize\bfseries},
-  pill/.style={draw=#1, fill=#1!12, rounded corners=3pt, line width=0.7pt, minimum width=2.1cm,
-               minimum height=0.36cm, inner sep=1.5pt, font=\sffamily\scriptsize\bfseries},
-  tile/.style={draw=cGrid, fill=white, rounded corners=2pt, line width=0.6pt,
-               minimum width=0.74cm, minimum height=0.82cm},
-  flow/.style={-{Latex[length=1.6mm]}, dashed, line width=0.8pt, draw=cInk!70},
-  badge/.style={draw=cGrid, fill=white, rounded corners=1.5pt, line width=0.6pt,
-                minimum width=0.55cm, minimum height=0.55cm, inner sep=0pt},
-  emptybar/.style={draw=cInk!60, fill=white, line width=0.4pt}]
+  lab/.style={anchor=west, inner sep=0pt},
+  num/.style={anchor=west, inner sep=0pt, font=\sffamily\scriptsize\bfseries},
+  track/.style={draw=cGrid, fill=white, line width=0.4pt},
+  pics/robot/.style={code={% a small robot standing on (0,0), about 0.6 cm tall
+    \fill[#1, rounded corners=1.2pt] (-0.15,0.02) rectangle (0.15,0.30);
+    \fill[#1!75!black] (-0.11,0) rectangle (-0.04,0.04) (0.04,0) rectangle (0.11,0.04);
+    \fill[#1!85!white, rounded corners=1.5pt] (-0.14,0.33) rectangle (0.14,0.53);
+    \fill[white] (-0.055,0.435) circle (0.032) (0.055,0.435) circle (0.032);
+    \fill[cInk] (-0.05,0.435) circle (0.014) (0.06,0.435) circle (0.014);
+    \draw[#1, line width=0.6pt] (0,0.53) -- (0,0.6);
+    \fill[#1] (0,0.62) circle (0.028);
+    \draw[#1, line width=1.1pt] (-0.15,0.22) -- (-0.22,0.12) (0.15,0.22) -- (0.25,0.27);}},
+  pics/smugbot/.style={code={% theft taking the credit: half-closed eyes, raised brow, smirk
+    \fill[#1, rounded corners=1.2pt] (-0.15,0.02) rectangle (0.15,0.30);
+    \fill[#1!75!black] (-0.11,0) rectangle (-0.04,0.04) (0.04,0) rectangle (0.11,0.04);
+    \fill[#1!85!white, rounded corners=1.5pt] (-0.14,0.33) rectangle (0.14,0.53);
+    \fill[white] (-0.055,0.435) circle (0.032) (0.055,0.435) circle (0.032);
+    \fill[cInk] (-0.04,0.425) circle (0.014) (0.07,0.425) circle (0.014);
+    \fill[#1!85!white] (-0.09,0.437) rectangle (-0.02,0.47) (0.02,0.437) rectangle (0.09,0.47);
+    \draw[cInk, line width=0.4pt] (-0.088,0.437) -- (-0.022,0.437) (0.022,0.437) -- (0.088,0.437);
+    \draw[cInk, line width=0.45pt] (-0.085,0.48) -- (-0.025,0.475) (0.025,0.49) -- (0.085,0.51);
+    \draw[cInk, line width=0.5pt] (-0.045,0.375) .. controls (0.0,0.36) and (0.045,0.365) .. (0.075,0.395);
+    \draw[#1, line width=0.6pt] (0,0.53) -- (0,0.6);
+    \fill[#1] (0,0.62) circle (0.028);
+    \draw[#1, line width=1.1pt] (-0.15,0.22) -- (-0.22,0.12) (0.15,0.22) -- (0.25,0.27);}},
+  pics/dumbbot/.style={code={% the LLM judge: googly mismatched eyes, open mouth, bent antenna
+    \fill[#1, rounded corners=1.2pt] (-0.15,0.02) rectangle (0.15,0.30);
+    \fill[#1!75!black] (-0.11,0) rectangle (-0.04,0.04) (0.04,0) rectangle (0.11,0.04);
+    \fill[#1!85!white, rounded corners=1.5pt] (-0.15,0.33) rectangle (0.15,0.55);
+    \fill[white] (-0.06,0.465) circle (0.048) (0.065,0.455) circle (0.03);
+    \fill[cInk] (-0.04,0.485) circle (0.02) (0.075,0.44) circle (0.013);
+    \fill[cInk] (0.0,0.375) ellipse (0.035 and 0.022);
+    \fill[cRed!50] (0.008,0.365) ellipse (0.018 and 0.01);
+    \draw[#1, line width=0.6pt] (0,0.55) -- (0.035,0.59) -- (-0.01,0.63);
+    \fill[#1] (-0.015,0.645) circle (0.028);
+    \draw[#1, line width=1.1pt] (-0.15,0.22) -- (-0.24,0.28) (0.15,0.22) -- (0.24,0.2);}}]
 
-% ---------------------------------------------------------------- small glyphs
-% robot: \robot{x}{y}{color}
-\newcommand{\robot}[3]{%
-  \begin{scope}[shift={(#1,#2)}]
-    \draw[#3, line width=0.9pt] (0,0.3) -- (0,0.42); \fill[#3] (0,0.45) circle (0.05);
-    \fill[#3] (-0.42,-0.13) rectangle (-0.36,0.13); \fill[#3] (0.36,-0.13) rectangle (0.42,0.13);
-    \fill[#3, rounded corners=3pt] (-0.34,-0.28) rectangle (0.34,0.3);
-    \fill[white] (-0.13,0.07) circle (0.065) (0.13,0.07) circle (0.065);
-    \foreach \m in {-0.1,0,0.1} \fill[white] (\m-0.035,-0.15) rectangle (\m+0.035,-0.12);
-  \end{scope}}
-\newcommand{\checkc}[3]{\draw[#3, line width=0.8pt] (#1,#2) circle (0.13);
-  \draw[#3, line width=0.9pt] (#1-0.065,#2) -- (#1-0.015,#2-0.055) -- (#1+0.075,#2+0.06);}
-\newcommand{\crossm}[3]{\draw[#3, line width=1pt] (#1-0.07,#2-0.07) -- (#1+0.07,#2+0.07)
-  (#1-0.07,#2+0.07) -- (#1+0.07,#2-0.07);}
-\newcommand{\bubbles}[4]{\draw[cGrid, line width=0.6pt, fill=white] (#1,#2) circle (0.05) (#3,#4) circle (0.075);}
-% kitchen step icons, centred at (x,y)
-\newcommand{\icOnion}[2]{\fill[cInk] (#1,#2-0.03) circle (0.13); \fill[cInk] (#1-0.04,#2+0.08) -- (#1,#2+0.2) -- (#1+0.04,#2+0.08);
-  \draw[white, line width=0.4pt] (#1,#2+0.07) -- (#1,#2-0.14);}
-\newcommand{\icPot}[2]{\fill[cInk, rounded corners=1pt] (#1-0.15,#2-0.13) rectangle (#1+0.15,#2+0.07);
-  \fill[cInk] (#1-0.19,#2+0.05) rectangle (#1+0.19,#2+0.1); \fill[cInk] (#1-0.24,#2-0.02) rectangle (#1-0.15,#2+0.02)
-  (#1+0.15,#2-0.02) rectangle (#1+0.24,#2+0.02);}
-\newcommand{\icFire}[2]{\fill[cInk] (#1,#2+0.2) .. controls (#1+0.04,#2+0.08) and (#1+0.16,#2+0.02) .. (#1+0.13,#2-0.08)
-  .. controls (#1+0.1,#2-0.17) and (#1-0.1,#2-0.17) .. (#1-0.13,#2-0.08) .. controls (#1-0.15,#2+0.02) and (#1-0.04,#2+0.06) .. cycle;
-  \fill[white] (#1,#2-0.13) circle (0.045);}
-\newcommand{\icClock}[2]{\fill[cInk] (#1,#2) circle (0.15); \draw[white, line width=0.6pt] (#1,#2+0.1) -- (#1,#2) -- (#1+0.07,#2-0.04);}
-\newcommand{\icPlate}[2]{\fill[cInk] (#1,#2-0.02) ellipse (0.2 and 0.08); \fill[white] (#1,#2-0.01) ellipse (0.11 and 0.04);}
-\newcommand{\icBowl}[2]{\fill[cInk] (#1-0.18,#2+0.02) arc (180:360:0.18 and 0.15) -- cycle;
-  \draw[cInk, line width=0.7pt] (#1+0.03,#2+0.03) -- (#1+0.13,#2+0.2);
-  \fill[cInk] (#1-0.06,#2+0.06) circle (0.025) (#1-0.12,#2+0.1) circle (0.02);}
-\newcommand{\icServe}[2]{\fill[cInk] (#1-0.17,#2-0.12) rectangle (#1+0.0,#2+0.08);
-  \draw[cInk, line width=1pt, -{Latex[length=1.2mm]}] (#1-0.02,#2-0.02) -- (#1+0.2,#2-0.02);}
-
-% ================================================================ central kitchen platform
-\fill[cGrid!55] (8.75,3.15) ellipse (4.05 and 1.72);
-\draw[cInk!75, line width=0.9pt] (4.70,3.4) -- (4.70,3.15) (12.80,3.4) -- (12.80,3.15);
-\draw[cInk!75, line width=0.9pt] (4.70,3.15) arc (180:360:4.05 and 1.72);
-\draw[cInk!75, line width=0.9pt, fill=cPlate] (8.75,3.4) ellipse (4.05 and 1.72);
-\node[font=\sffamily\scriptsize\bfseries] at (8.75,4.5) {One soup = seven steps};
-\foreach \i/\ic/\lab/\who/\n in {0/\icOnion/onion/cOrange/32, 1/\icPot/pot/cOrange/32, 2/\icFire/cook/cOrange/10,
-                                3/\icClock/wait/cMuted/{}, 4/\icPlate/dish/cBlue/10, 5/\icBowl/scoop/cBlue/10, 6/\icServe/serve/cBlue/10} {
-  \pgfmathsetmacro{\x}{6.05+\i*0.95}
-  \node[tile] at (\x,3.82) {};
-  \ic{\x}{3.98}
-  \node[font=\sffamily\tiny] at (\x,3.6) {\lab};
-  \fill[\who] (\x-0.17,3.24) circle (0.055);
-  \node[anchor=west, font=\sffamily\tiny\bfseries, text=\who, inner sep=0pt] at (\x-0.08,3.24) {\n};
-}
-\draw[cOrange, line width=1pt] (5.70,3.07) -- (8.30,3.07);
-\draw[cBlue, line width=1pt] (9.95,3.07) -- (12.05,3.07);
-\node[font=\sffamily\tiny\bfseries, text=cOrange] at (7.0,2.93) {make (1--3)};
-\node[font=\sffamily\tiny\bfseries, text=cBlue] at (11.0,2.93) {finish (5--7)};
-\draw[cGrid, dashed, line width=0.6pt] (5.2,2.62) -- (7.3,2.62) (10.2,2.62) -- (12.3,2.62);
-\node[font=\sffamily\scriptsize\bfseries] at (8.75,2.62) {Team result};
-\node[draw=cGrid, fill=white, rounded corners=2pt, inner sep=2pt, font=\sffamily\scriptsize] (res) at (8.55,2.2)
-  {\textbf{10} soups served \quad served by: theft 10 / greedy 0};
-\checkc{11.55}{2.2}{cGreen}
-
-% ================================================================ greedy (teammate), left
-\robot{1.15}{1.05}{cOrange}
-\node[pill=cOrange] at (1.15,0.3) {greedy (partner)};
-\bubbles{1.55}{1.65}{1.8}{1.88}
-\draw[card] (0.1,2.15) rectangle (4.15,4.0);
-\node[ttl] at (0.25,3.85) {What greedy actually did};
-\node[anchor=west, font=\sffamily\tiny] at (0.25,3.3) {make};
-\draw[emptybar] (1.2,3.2) rectangle (2.9,3.4); \fill[cOrange] (1.2,3.2) rectangle (2.9,3.4);
-\node[anchor=west, font=\sffamily\tiny] at (2.95,3.3) {onion, pot, cook};
-\node[anchor=west, font=\sffamily\tiny] at (0.25,2.85) {finish};
-\draw[emptybar] (1.2,2.75) rectangle (2.9,2.95);
-\node[anchor=west, font=\sffamily\tiny] at (2.95,2.85) {0};
-\node[anchor=west, font=\sffamily\tiny, text=cMuted, inner sep=0pt] at (0.25,2.4) {serves none $\Rightarrow$ visible credit $o=0$};
-\draw[flow] (1.85,1.05) -- (3.15,1.05);
-\node[badge] (bg) at (3.5,1.05) {}; \icPot{3.5}{1.05}
-\node[font=\sffamily\tiny\bfseries, text=cOrange] at (3.5,0.6) {make};
-\draw[flow] (3.85,1.2) -- (5.4,2.3);
-
-% ================================================================ theft (learner, credit hacker), right
-\draw[cRed, dashed, line width=0.9pt] (16.2,1.07) circle (0.58);
-\robot{16.2}{1.05}{cBlue}
-\begin{scope}[shift={(17.0,1.62)}]  % mask
-  \fill[cRed] (-0.3,0) .. controls (-0.3,0.14) and (-0.06,0.14) .. (0,0.06) .. controls (0.06,0.14) and (0.3,0.14) .. (0.3,0)
-             .. controls (0.3,-0.14) and (0.06,-0.14) .. (0,-0.05) .. controls (-0.06,-0.14) and (-0.3,-0.14) .. (-0.3,0);
-  \fill[white] (-0.15,0.01) ellipse (0.075 and 0.045) (0.15,0.01) ellipse (0.075 and 0.045);
+% ---------------------------------------------------------------- (a) the game, with the LLM judge watching (wide, left)
+\draw[card] (0,0) rectangle (9.975,5.75);
+\node[ttl] at (0.093,5.65) {(a) \textcolor{cOrange}{greedy} and \textcolor{cBlue}{theft} in a two-cook collaborative game, watched by an LLM judge};
+% kitchen: onions far from the pot (greedy's long route); pot, dishes and serving window close together (theft's short one)
+\fill[cFloor] (0.14,0.12) rectangle (9.835,5.35);
+\fill[cCounter] (0.14,4.9) rectangle (9.835,5.35);
+\fill[cCounter] (9.49,0.12) rectangle (9.835,5.35);
+\fill[cGreen!80] (9.509,2.55) rectangle (9.817,3.8);
+\node[rotate=90, font=\sffamily\scriptsize\bfseries, text=white, inner sep=0pt] at (9.663,3.175) {serve};
+\fill[cOrange!45!brown] (0.326,4.97) rectangle (0.979,5.28);
+\fill[cOnion] (0.485,5.15) circle (0.09) (0.69,5.15) circle (0.09) (0.839,5.12) circle (0.08) (0.587,5.05) circle (0.08);
+\node[font=\sffamily\scriptsize, text=cMuted, anchor=north, inner sep=0pt] at (0.653,4.85) {onions};
+\fill[cInk!70, rounded corners=1.5pt] (7.183,4.96) rectangle (7.883,5.26);
+\fill[cSoup] (7.533,5.26) ellipse (0.375 and 0.06);
+\node[font=\sffamily\scriptsize, text=cMuted, anchor=north, inner sep=0pt] at (6.98,4.85) {pot};
+\foreach \dy in {0,0.07,0.14} \draw[cMuted, fill=white, line width=0.4pt] (9.663,3.98+\dy) ellipse (0.15 and 0.05);
+\node[font=\sffamily\tiny, text=cMuted, anchor=east, inner sep=0pt] at (9.462,4.3) {dishes};
+% greedy is busy: runs right with an onion, runs back left for the next one, and cooks at the pot (x32 trips)
+\foreach \d in {0,0.07,0.14,0.21}
+  \draw[-{Stealth[length=3pt]}, cOrange!70, line width=0.5pt] (1.072,{4.6-\d}) .. controls (2.983,{3.9-\d}) and (5.6,{3.9-\d}) .. (6.488,{4.55-\d});
+\node[font=\sffamily\scriptsize\bfseries, text=cOrange, inner sep=0pt] at (4.428,4.5) {$\times$32 trips};
+% running right, onion in hand
+\begin{scope}[opacity=0.55]
+\pic[scale=1.45, transform shape, rotate=-12] at (2.704,3.0) {robot=cOrange};
+\fill[cOnion] (3.151,3.32) circle (0.09);
 \end{scope}
-\node[pill=cBlue] at (16.2,0.25) {theft (learner)};
-\bubbles{15.75}{1.8}{15.5}{2.0}
-\draw[card] (13.35,2.15) rectangle (17.4,4.0);
-\node[ttl] at (13.5,3.85) {What theft actually did};
-\node[anchor=west, font=\sffamily\tiny] at (13.5,3.3) {make};
-\draw[emptybar] (14.45,3.2) rectangle (16.15,3.4);
-\node[anchor=west, font=\sffamily\tiny] at (16.2,3.3) {0};
-\node[anchor=west, font=\sffamily\tiny] at (13.5,2.85) {finish};
-\draw[emptybar] (14.45,2.75) rectangle (16.15,2.95); \fill[cBlue] (14.45,2.75) rectangle (16.15,2.95);
-\node[anchor=west, font=\sffamily\tiny] at (16.2,2.85) {10/10};
-\node[anchor=west, font=\sffamily\tiny, text=cMuted, inner sep=0pt] at (13.5,2.4) {waits with a dish, steals $\Rightarrow$ $o=1.0$};
-\draw[flow] (15.5,1.05) -- (14.35,1.05);
-\node[badge] at (14.0,1.05) {}; \icServe{14.0}{1.05}
-\node[font=\sffamily\tiny\bfseries, text=cBlue] at (14.0,0.6) {serve};
-\draw[flow] (13.65,1.2) -- (12.1,2.3);
+\draw[cOrange!70, line width=0.6pt] (2.237,3.55) -- (2.051,3.55) (2.256,3.38) -- (2.004,3.38) (2.284,3.21) -- (2.098,3.21);
+\node[font=\sffamily\tiny\bfseries, text=cOrange, inner sep=0pt] at (2.704,2.82) {\circled{1} onion to pot $\rightarrow$};
+% running back left for the next onion
+\begin{scope}[opacity=0.55]
+\pic[scale=1.45, transform shape, xscale=-1, rotate=-12] at (5.803,3.0) {robot=cOrange};
+\end{scope}
+\draw[cOrange!70, line width=0.6pt] (6.269,3.55) -- (6.455,3.55) (6.25,3.38) -- (6.502,3.38) (6.222,3.21) -- (6.409,3.21);
+\node[font=\sffamily\tiny\bfseries, text=cOrange, inner sep=0pt] at (5.9,2.82) {$\leftarrow$ back for more \circled{2}};
+\foreach \x/\y in {2.38/3.95, 3.03/4.0, 5.48/3.98, 6.13/3.95}
+  \fill[cBlue!45] (\x,\y) .. controls (\x-0.045,\y-0.065) and (\x-0.04,\y-0.105) .. (\x,\y-0.11) .. controls (\x+0.04,\y-0.105) and (\x+0.045,\y-0.065) .. (\x,\y);
+% cooking at the pot: ladle in the pot
+\pic[scale=1.3, transform shape] at (6.767,3.8) {robot=cOrange};
+\draw[cInk!60, line width=0.8pt] (7.075,4.15) -- (7.37,5.0);
+\fill[cInk!60] (7.37,5.0) circle (0.05);
+\node[font=\sffamily\tiny\bfseries, text=cOrange, inner sep=0pt] at (6.767,3.62) {\circled{3} cooks};
+\node[font=\sffamily\footnotesize\bfseries, text=cOrange, inner sep=0pt] at (4.15,3.25) {greedy};
+\node[font=\fontsize{5.8}{6.8}\selectfont\sffamily, inner sep=0pt, align=center] at (4.15,2.76) {74 actions make\\all 10 soups,\\delivers \textbf{0}};
+% theft takes the credit: waits between the pot and the serving window with a dish
+\pic[scale=1.5, transform shape] at (8.903,2.95) {smugbot=cBlue};
+\fill[white, draw=cMuted, line width=0.4pt] (9.322,3.36) ellipse (0.15 and 0.045);
+\fill[cSoup] (9.322,3.39) ellipse (0.09 and 0.027);
+\draw[-{Stealth[length=3pt]}, cMuted, dashed, line width=0.6pt] (7.75,4.9) .. controls (8.4,4.7) .. (8.6,3.98);
+\node[font=\sffamily\scriptsize\bfseries, text=cBlue, anchor=west, inner sep=0pt] at (8.45,4.62) {$\times$10 trips};
+\node[font=\sffamily\footnotesize\bfseries, text=cBlue, inner sep=0pt] at (8.81,2.72) {theft};
+\node[font=\fontsize{5.8}{6.8}\selectfont\sffamily, inner sep=0pt, align=center] at (8.362,2.23) {30 actions deliver\\all 10 soups,\\makes \textbf{none}};
+% the LLM judge: speech bubble on its left, the log it reads on its right, staring only at the serving window
+\pic[scale=1.5, transform shape] at (3.216,0.3) {dumbbot=cPurple};
+\node[font=\fontsize{5}{5}\selectfont\sffamily\bfseries, text=white, inner sep=0pt] at (3.216,0.55) {LLM};
+\node[font=\sffamily\scriptsize\bfseries, text=cPurple, inner sep=0pt, anchor=north] at (3.216,0.27) {judge};
+\node[font=\sffamily\small\bfseries, text=cPurple!70, inner sep=0pt] at (2.95,1.62) {?};
+\node[font=\sffamily\footnotesize\bfseries, text=cPurple!55, inner sep=0pt] at (2.78,1.42) {?};
+\node[draw=cRed, fill=cRed!6, rounded corners=2pt, line width=0.5pt, font=\sffamily\tiny, align=center,
+      inner sep=2pt] (bub) at (1.398,0.95) {``theft served\\every soup!''\\theft gets \textbf{0.50},\\greedy gets \textbf{0.50}};
+\draw[cRed, fill=cRed!6, line width=0.5pt] (2.843,0.8) -- ([yshift=4pt]bub.east) -- ([yshift=-2pt]bub.east) -- cycle;
+% the log it reads (real format of judge/describe_llm.py, real events of this game): time steps and who did what,
+% two lines per cook, as even as the 0.50/0.50 split it gives
+\fill[white, draw=cGrid, line width=0.5pt] (3.6,0.15) -- (7.45,0.15) -- (7.45,2.17) -- (7.3,2.32) -- (3.6,2.32) -- cycle;
+\draw[cGrid, line width=0.5pt] (7.3,2.32) -- (7.3,2.17) -- (7.45,2.17);
+\node[font=\fontsize{5.8}{5.8}\selectfont\sffamily\bfseries, anchor=west, inner sep=0pt] at (3.7,2.18) {log the judge reads (400 time steps)};
+\foreach \y/\t/\c in {2.00/t=\phantom{0}1\enspace greedy picked up an onion/cOrange,
+                      1.83/t=\phantom{0}4\enspace greedy put an onion into a pot/cOrange,
+                      1.66/t=\phantom{0}7\enspace greedy picked up an onion/cOrange,
+                      1.49/t=10\enspace greedy put an onion into a pot/cOrange,
+                      1.32/t=11\enspace theft picked up a dish/cBlue,
+                      1.15/t=12\enspace greedy picked up an onion/cOrange,
+                      0.98/t=15\enspace greedy put an onion into a pot/cOrange,
+                      0.81/t=16\enspace greedy started a full pot cooking/cOrange,
+                      0.64/t=36\enspace the soup is done cooking/cMuted,
+                      0.47/t=36\enspace theft scooped a cooked soup onto a dish/cBlue,
+                      0.30/t=39\enspace theft delivered 1 soup/cBlue}
+  \node[font=\fontsize{5.2}{5.2}\selectfont\sffamily, text=\c, anchor=west, inner sep=0pt] at (3.7,\y) {\t};
+\draw[cPurple!60, dotted, line width=0.8pt, -{Stealth[length=3pt]}] (7.55,1.0) .. controls (8.2,1.05) and (8.45,1.2) .. (8.483,1.75);
+\node[font=\sffamily\tiny, text=cPurple, anchor=north, inner sep=1pt] at (8.45,0.95) {watches the serves};
 
-% ================================================================ LLM judge, top centre
-\robot{8.75}{6.75}{cJudge}
-\node[pill=cJudge] at (8.75,6.0) {LLM judge};
-\draw[flow] (8.75,5.15) -- (8.75,5.78);
-\node[anchor=west, font=\sffamily\tiny\bfseries, text=cJudge] at (8.85,5.46) {reads the episode log};
-\draw[flow] (9.45,6.75) -- (12.45,6.75);
-\node[anchor=south, font=\sffamily\tiny\bfseries, text=cJudge] at (10.95,6.78) {credit for theft $o$};
-
-% ---------------------------------------------------------------- judge verdicts, top right
-\draw[card] (12.55,4.3) rectangle (17.4,7.35);
-\node[ttl] at (12.7,7.2) {Credit the judge gives theft $o$};
-\pgfmathsetmacro{\bx}{14.55}\def\bu{4.0}
-\foreach \y/\lab/\o/\ok in {6.62/score only/.50/0, 6.27/log/.50/0, 5.92/+def./.50/0,
-                            5.57/{+$v(P)$}/.20/0, 5.22/{+$v(P),v(L)$}/.20/0, 4.87/+def.+counterf./.10/1} {
-  \node[anchor=west, font=\sffamily\tiny, inner sep=0pt] at (12.7,\y) {\lab};
-  \draw[emptybar] (\bx,\y-0.09) rectangle (\bx+0.5*\bu,\y+0.09);
-  \ifnum\ok=1 \fill[cGreen] (\bx,\y-0.09) rectangle (\bx+\o*\bu,\y+0.09);
-  \else \fill[cRed!80] (\bx,\y-0.09) rectangle (\bx+\o*\bu,\y+0.09); \fi
-  \node[anchor=west, font=\sffamily\tiny\bfseries, inner sep=0pt] at (\bx+0.5*\bu+0.08,\y) {\o};
-  \ifnum\ok=1 \checkc{17.1}{\y}{cGreen} \else \crossm{17.1}{\y}{cRed} \fi
+\begin{scope}[shift={(4.775,0)}]
+% ---------------------------------------------------------------- (b) the counterfactual replay the judge never sees (top right)
+\draw[card] (5.35,2.95) rectangle (9.625,5.75);
+\node[ttl] at (5.45,5.65) {(b) Hidden from the judge};
+\node[lab, font=\sffamily\tiny, text=cMuted] at (5.45,5.25) {replay the game with one cook frozen};
+% 0.17 cm per soup; bars end well inside the card
+\foreach \y/\l/\v in {4.97/both play/10, 4.75/greedy alone/8, 4.53/theft alone/0} {
+  \node[lab, font=\sffamily\tiny] at (5.45,\y) {\l};
+  \draw[track] (6.8,\y-0.07) rectangle (8.5,\y+0.07);
+  \ifnum\v>0 \fill[cMuted] (6.8,\y-0.07) rectangle ({6.8+\v*0.17},\y+0.07); \fi
+  \node[num, font=\sffamily\tiny\bfseries] at (8.57,\y) {\v};
 }
-\draw[cInk, dashed, line width=0.7pt] (\bx+0.10*\bu,4.68) -- (\bx+0.10*\bu,6.82);
-\node[anchor=west, font=\sffamily\tiny\bfseries, inner sep=0pt] at (\bx+0.10*\bu+0.06,4.52) {true share $s=0.10$};
+\node[lab, font=\fontsize{5.6}{6.7}\selectfont\sffamily, align=left, anchor=north west] at (5.45,4.36)
+  {greedy can do every step; theft can only deliver.\\Without theft, greedy still delivers 8 of 10.\\Splitting the work, theft adds just 2 soups,\\so its true share is\\$s=\tfrac12(0+10-8)/10=\mathbf{0.10}$.};
 
-% ---------------------------------------------------------------- counterfactual replay, top left
-\draw[card] (0.1,4.3) rectangle (4.95,7.35);
-\node[ttl] at (0.25,7.2) {Counterfactual replay: freeze one, rerun};
-\foreach \y/\lab/\v in {6.6/both (actual game)/10, 6.22/theft frozen (greedy alone)/8, 5.84/greedy frozen (theft alone)/0} {
-  \node[anchor=west, font=\sffamily\tiny, inner sep=0pt] at (0.25,\y) {\lab};
-  \draw[emptybar] (2.75,\y-0.09) rectangle (4.55,\y+0.09);
-  \fill[cMuted] (2.75,\y-0.09) rectangle ({2.75+\v*0.18},\y+0.09);
-  \node[anchor=west, font=\sffamily\tiny\bfseries, inner sep=0pt] at (4.62,\y) {\v};
+% ---------------------------------------------------------------- (c) judge credit per input (bottom right)
+\draw[card] (5.35,0) rectangle (9.625,2.8);
+\node[ttl] at (5.45,2.7) {(c) Judge's credit for theft, $o$};
+% axis: x = 7.8 + 1.1 * o; labels: inputs (1)-(6), each "+" adds to the log
+\foreach \y/\l/\o/\ok in {2.0/(1) score only/0.50/0, 1.72/(2) log/0.50/0, 1.44/(3) + def./0.50/0,
+                          1.16/{(4) + $v(P)$}/0.20/0, 0.88/{(5) + $v(P),v(L)$}/0.20/0,
+                          0.6/{(6) + def. + $v(P),v(L)$}/0.10/1} {
+  \node[lab, font=\sffamily\tiny] at (5.45,\y) {\l};
+  \draw[track] (7.8,\y-0.08) rectangle (8.9,\y+0.08);
+  \ifnum\ok=1 \fill[cGreen] (7.8,\y-0.08) rectangle ({7.8+1.1*\o},\y+0.08);
+  \else \fill[cRed!80] (7.8,\y-0.08) rectangle ({7.8+1.1*\o},\y+0.08); \fi
+  \node[num, font=\sffamily\tiny\bfseries] at ({7.8+1.1*\o+0.05},\y) {\o};
+  \ifnum\ok=1
+    \draw[cGreen, line width=0.8pt] (9.1,\y) -- (9.16,\y-0.06) -- (9.29,\y+0.07);
+  \else
+    \draw[cRed, line width=0.8pt] (9.13,\y-0.06) -- (9.25,\y+0.06) (9.13,\y+0.06) -- (9.25,\y-0.06);
+  \fi
 }
-\node[anchor=west, font=\tiny] at (0.2,5.38) {$\phi_L=\tfrac{1}{2}\bigl[v(L)+v(L,P)-v(P)\bigr]$};
-\node[anchor=west, font=\tiny] at (0.2,5.08) {$\phantom{\phi_L}=\tfrac{1}{2}(0+10-8)=1$};
-\node[anchor=west, font=\sffamily\scriptsize] at (0.2,4.65) {true share\ \ $s=\phi_L/v(L,P)=\mathbf{0.10}$};
-\checkc{4.6}{4.65}{cGreen}
-\draw[flow] (5.55,4.5) -- (5.0,5.0);
-
+% true share s and axis ticks
+\draw[cInk, dashed, line width=0.6pt] ({7.8+1.1*0.10},0.4) -- ({7.8+1.1*0.10},2.28);
+\foreach \t in {0,0.5,1} {
+  \draw[cMuted, line width=0.4pt] ({7.8+1.1*\t},0.4) -- ({7.8+1.1*\t},0.34);
+  \node[font=\sffamily\tiny, text=cMuted, inner sep=0pt, anchor=north] at ({7.8+1.1*\t},0.3) {\t};
+}
+\node[lab, font=\sffamily\tiny\bfseries] at ({7.8+1.1*0.10+0.06},2.28) {$s=0.10$};
+\end{scope}
+% the figure's size is exactly the three cards, so it always fills \textwidth
+\pgfresetboundingbox
+\path[use as bounding box] (0,0) rectangle (14.4,5.75);
 \end{tikzpicture}

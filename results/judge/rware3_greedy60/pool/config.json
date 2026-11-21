@@ -1,0 +1,18 @@
+{
+  "env": "rware",
+  "layout": "cramped-hard",
+  "horizon": null,
+  "agents": 3,
+  "partners": [
+    "greedy"
+  ],
+  "behaviors": [
+    "greedy"
+  ],
+  "policies": [],
+  "episodes": 60,
+  "workers": 8,
+  "random_start": false,
+  "out": "results/judge/rware3_greedy60",
+  "pool_seed0": 50000
+}
